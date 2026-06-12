@@ -52,6 +52,10 @@
 	cost = PAYCHECK_COMMAND * 12
 	//restricted = TRUE
 
+/datum/supply_pack/companies/ballistics/intern_project/primary/solstice
+	contains = list(/obj/item/gun/ballistic/rifle/solstice)
+	cost = PAYCHECK_COMMAND * 16
+
 /datum/supply_pack/companies/energy/intern_project/photon_sniper
 	contains = list(/obj/item/gun/energy/photon_sniper)
 	cost = PAYCHECK_COMMAND * 8
