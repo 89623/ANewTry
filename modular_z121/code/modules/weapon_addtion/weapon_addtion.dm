@@ -618,7 +618,7 @@
 
 /obj/item/gun/ballistic/rifle/solstice/drop_bolt(mob/user = null)
 	if (!magazine?.ammo_count())
-		balloon_alert(user, "stuck!")
+		balloon_alert(user, "卡住!")
 		playsound(user,'sound/items/weapons/jammed.ogg', 75, TRUE)
 		return FALSE
 
