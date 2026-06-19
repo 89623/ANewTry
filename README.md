@@ -5,6 +5,17 @@
 请注意：本仓库继承自 Nova Sector，可能包含成人向内容，不适合 18 岁以下用户浏览或使用。
 
 Space Station 13 是一款回合制多人角色扮演游戏，背景设定在一座危险、混乱且经常失控的太空站中。玩家将在不同岗位、事件与突发状况中合作、对抗，并尝试活到回合结束。
+| Website                   | Link                                                                                                                                   |
+| -----------------------   | -------------------------------------------------------------------------------------------------------------------------------------- |
+| How to Write a Design Doc |  [https://hackmd.io/@tgstation/BkzmU9EyK](https://hackmd.io/@tgstation/BkzmU9EyK)                                                      |
+| Git / GitHub cheatsheet   | [https://www.notion.so/Git-GitHub-61bc81766b2e4c7d9a346db3078ce833](https://www.notion.so/Git-GitHub-61bc81766b2e4c7d9a346db3078ce833) |
+| Guide to Modularization   | [./modular_nova/readme.md](./modular_nova/readme.md)                                                                                   |
+| Guide to Mirroring        | [./modular_nova/mirroring_guide.md](./modular_nova/mirroring_guide.md)                                                                 |
+| Code                      | [https://github.com/NovaSector/NovaSector](https://github.com/NovaSector/NovaSector)                                                   |
+| Wiki                      | [https://wiki.novasector13.com](https://wiki.novasector13.com)                                                                         |
+| Codedocs                  | [https://NovaSector.github.io/NovaSector/](https://NovaSector.github.io/NovaSector/)                                                   |
+| Nova Sector's Discord     | [https://discord.gg/novasector](https://discord.gg/novasector)                                                                         |
+| Coderbus Discord          | [https://discord.gg/Vh8TJp9](https://discord.gg/Vh8TJp9)                                                                               |
 
 ## 项目关系
 

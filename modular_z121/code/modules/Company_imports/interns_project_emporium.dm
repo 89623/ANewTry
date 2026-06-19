@@ -52,6 +52,10 @@
 	cost = PAYCHECK_COMMAND * 12
 	//restricted = TRUE
 
+/datum/supply_pack/companies/ballistics/intern_project/primary/solstice
+	contains = list(/obj/item/gun/ballistic/rifle/solstice)
+	cost = PAYCHECK_COMMAND * 16
+
 /datum/supply_pack/companies/energy/intern_project/photon_sniper
 	contains = list(/obj/item/gun/energy/photon_sniper)
 	cost = PAYCHECK_COMMAND * 8
@@ -60,6 +64,18 @@
 //	弹药
 /datum/supply_pack/companies/mags_and_ammo/intern_project
 	cost = PAYCHECK_CREW
+
+/datum/supply_pack/companies/mags_and_ammo/intern_project/c20nuoli
+	contains = list(/obj/item/ammo_box/c20nuoli)
+	cost = PAYCHECK_CREW * 2
+
+/datum/supply_pack/companies/mags_and_ammo/intern_project/c20nuoli_smart
+	contains = list(/obj/item/ammo_box/c20nuoli/smart)
+	cost = PAYCHECK_CREW * 2
+
+/datum/supply_pack/companies/mags_and_ammo/intern_project/c20nuoli_breacher
+	contains = list(/obj/item/ammo_box/c20nuoli/breacher)
+	cost = PAYCHECK_CREW * 2
 
 /datum/supply_pack/companies/mags_and_ammo/intern_project/bolt
 	contains = list(/obj/item/ammo_casing/rebar/bolt)
