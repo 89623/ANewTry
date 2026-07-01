@@ -1,0 +1,23 @@
+// Gunset for the Wespe pistol
+/obj/item/storage/toolbox/guncase/nova/pistol/trappiste_small_case/wespe
+	name = "\improper 特拉皮斯特 '黄蜂' 枪组"
+	weapon_to_spawn = /obj/item/gun/ballistic/automatic/pistol/sol/no_mag
+	extra_to_spawn = /obj/item/ammo_box/magazine/c35sol_pistol
+
+// Gunset for the Skild heavy pistol
+/obj/item/storage/toolbox/guncase/nova/pistol/trappiste_small_case/skild
+	name = "\improper 特拉皮斯特 '盾牌' 枪组"
+	weapon_to_spawn = /obj/item/gun/ballistic/automatic/pistol/trappiste/no_mag
+	extra_to_spawn = /obj/item/ammo_box/magazine/c585trappiste_pistol
+
+// Gunset for the Takbok Revolver
+/obj/item/storage/toolbox/guncase/nova/pistol/trappiste_small_case/takbok
+	name = "\improper 特拉皮斯特 '羚羊' 枪组"
+	weapon_to_spawn = /obj/item/gun/ballistic/revolver/takbok
+	extra_to_spawn = /obj/item/ammo_box/speedloader/c585trappiste
+
+// Gunset for the Blueshield Revolver
+/obj/item/storage/toolbox/guncase/nova/pistol/trappiste_small_case/bluvolva
+	name = "\improper 特拉皮斯特 '挡板' 枪组"
+	weapon_to_spawn = /obj/item/gun/ballistic/revolver/bluvolva
+	extra_to_spawn = /obj/item/ammo_box/speedloader/c585trappiste

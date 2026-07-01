@@ -1,0 +1,45 @@
+// THIS IS A NOVA SECTOR UI FILE
+.theme-clockwork {
+  &:root {
+    --color-good: #cfba47;
+    --color-primary: #b18b25;
+    --color-bad: #5f380e;
+    --color-base-start: #b18b25;
+    --color-base-end: #5f380e;
+    --color-secondary: #5f380e;
+    --border-radius: 2px;
+    --section-separator-color: #d6ca85;
+    --divider-color: #d6ca85;
+    --button-background-default: var(--color-primary);
+    --button-background-disabled: #665c3c;
+    --button-background-selected: #cfba47;
+    --button-background-caution: #ffae42;
+    --button-background-danger: #ffff00;
+
+    // Components
+  }
+
+  //Layouts
+
+  .Button--disabled {
+    background-color: #665c3c;
+    opacity: 1;
+  }
+
+  .Input {
+    color: #b18b25;
+    background-color: #cfba47;
+  }
+
+  .Tooltip {
+    background-color: #2d1400;
+  }
+
+  .ProgressBar {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .Layout__content {
+    background-image: none;
+  }
+}

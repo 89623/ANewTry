@@ -1,0 +1,20 @@
+/datum/map_template/shuttle/starfury
+	port_id = "starfury"
+	who_can_purchase = null
+
+/datum/map_template/shuttle/starfury/fighter_one
+	suffix = "fighter1"
+	name = "SBC星怒战斗机（1）"
+
+/datum/map_template/shuttle/starfury/fighter_two
+	suffix = "fighter2"
+	name = "SBC星怒战斗机（2）"
+
+/datum/map_template/shuttle/starfury/fighter_three
+	suffix = "fighter3"
+	name = "SBC星怒战斗机（3）"
+
+/datum/map_template/shuttle/starfury/corvette
+	suffix = "corvette"
+	name = "SBC星怒护卫舰"
+

@@ -1,0 +1,249 @@
+<div class="motd-scifi-static">
+  <!-- 四角装饰 (白色) -->
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <div class="motd-header">
+    <span class="motd-icon">✧</span>
+    <span class="motd-title">MESSAGE OF THE DAY</span>
+    <span class="motd-version">Beta.Test</span>
+  </div>
+
+  <div class="motd-content">
+    <div class="motd-subtitle">// 天关13 · 先遣测试</div>
+
+    <!-- 主标题：白蓝渐变 + 微光 -->
+    <div class="motd-large-title motd-glow-title motd-center">欢迎来到 天关13 服务器</div>
+    <div class="motd-center motd-normal">请遵守服务器规则，自觉维护良好社区环境</div>
+
+    <div class="motd-divider-scifi"></div>
+
+    <div class="motd-large-title motd-white motd-center">蓝空传送链路</div>
+    <div class="info-line"><span class="motd-orange">> 服务器QQ群号</span> 1097997352</div>
+    <div class="info-line"><span class="motd-skyblue">> 当前服务器IP</span> 43.248.0.124:33216</div>
+    <div class="info-line"><span class="motd-lightred">> 服务器Wiki链接</span> https://tianguanstation.miraheze.org/wiki/%E4%B8%BB%E9%A1%B5</div>
+
+    <div class="motd-divider-scifi"></div>
+
+    <div class="motd-large-title motd-skyblue motd-center">关于 天关13</div>
+    <p class="motd-paragraph">
+      <span class="motd-skyblue-bold">《十三号空间站》(SpaceStaion13/SS13)</span>
+      </p>
+      是一款在伪装成空间站的荒谬金属死亡陷阱上的充满偏执的<span class="motd-lightgreen">角色扮演游戏</span>。
+    </p>
+    <p class="motd-paragraph">
+      <span class="motd-gold-bold">天关13</span>是基于<span class="motd-skyblue-bold">SS13 Nova Sector</span>的中文下游源码。
+    </p>
+  </div>
+
+    <div class="motd-divider-scifi"></div>
+
+    <div class="motd-large-title motd-bigred motd-center">提醒</div>
+    <p class="motd-paragraph">
+        1.<span class="motd-yelled">该服务器的角色扮演等级为中度角色扮演(MRP)，请遵守角色扮演要求。</span>
+        </p>
+        2.<span class="motd-blue">该服务器使用汉语/简体中文，请注意语言使用。(但由于汉化工作正在进行，在游戏中发现英文是正常的)</span>
+        </p>
+        3.<span class="motd-lightgreen">服务器处于测试阶段，如有任何问题，请向管理员报告。</span>
+        </p>
+
+
+  <div class="motd-footer">
+    <span class="motd-cursor">>></span> 今日消息 <span class="motd-cursor"><<</span>
+  </div>
+</div>
+
+<style>
+  /* 静态科幻风格 - 纯黑背景 + 白色装饰，无动画 */
+  .motd-scifi-static {
+    all: initial;
+    display: block;
+    position: relative;
+    max-width: 100%;
+    margin: 8px 0;
+    padding: 20px 24px;
+    background: #000000;
+    border-left: 3px solid #ffffff;
+    border-radius: 16px;
+    font-family: 'Courier New', 'Fira Code', 'Segoe UI', monospace;
+    color: #eef;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.2);
+    overflow: hidden;
+  }
+
+  /* 静态星空背景 (保持轻微点缀) */
+  .motd-scifi-static::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      radial-gradient(1px 1px at 15% 30%, rgba(255,255,255,0.3) 1px, transparent 1px),
+      radial-gradient(1px 1px at 75% 55%, rgba(255,255,255,0.2) 1px, transparent 1px),
+      radial-gradient(1px 1px at 95% 80%, rgba(255,255,255,0.2) 1px, transparent 1px),
+      radial-gradient(1px 1px at 22% 85%, rgba(255,255,255,0.4) 1px, transparent 1px),
+      radial-gradient(1px 1px at 48% 15%, rgba(255,255,255,0.2) 1px, transparent 1px),
+      radial-gradient(1px 1px at 88% 28%, rgba(255,255,255,0.3) 1px, transparent 1px),
+      radial-gradient(1px 1px at 60% 92%, rgba(255,255,255,0.3) 1px, transparent 1px),
+      radial-gradient(1px 1px at 5% 62%, rgba(255,255,255,0.2) 1px, transparent 1px);
+    background-size: 200px 200px;
+    background-repeat: repeat;
+    pointer-events: none;
+    opacity: 0.5;
+    z-index: 0;
+  }
+
+  /* 十字图案背景：更细的线条 + 更大间距 (80x80) */
+  .motd-scifi-static::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cpath d='M40 28 L40 52 M28 40 L52 40' stroke='white' stroke-width='0.6' stroke-opacity='0.2' fill='none' /%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 80px 80px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* 所有内容位于装饰层之上 */
+  .motd-scifi-static * {
+    position: relative;
+    z-index: 2;
+    all: unset;
+    display: revert;
+    box-sizing: border-box;
+  }
+
+  /* 四角装饰 (白色) */
+  .corner {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-color: #ffffff;
+    border-style: solid;
+    border-width: 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .corner-tl { top: 12px; left: 12px; border-top-width: 2px; border-left-width: 2px; }
+  .corner-tr { top: 12px; right: 12px; border-top-width: 2px; border-right-width: 2px; }
+  .corner-bl { bottom: 12px; left: 12px; border-bottom-width: 2px; border-left-width: 2px; }
+  .corner-br { bottom: 12px; right: 12px; border-bottom-width: 2px; border-right-width: 2px; }
+
+  /* 头部 */
+  .motd-scifi-static .motd-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.5);
+    padding-bottom: 8px;
+  }
+  .motd-scifi-static .motd-icon { font-size: 1.3rem; color: #ffffff; }
+  .motd-scifi-static .motd-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #ffffff;
+    font-family: monospace;
+  }
+  .motd-scifi-static .motd-version {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: #cccccc;
+    font-family: monospace;
+  }
+
+  /* 内容区 */
+  .motd-scifi-static .motd-subtitle {
+    font-size: 0.75rem;
+    color: #aaaaff;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+  }
+  .motd-scifi-static .motd-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .motd-scifi-static .motd-paragraph {
+    display: block;
+    margin: 8px 0;
+  }
+
+  /* 分割线：纯白色横线，无菱形 */
+  .motd-divider-scifi {
+    margin: 16px 0;
+    height: 1px;
+    background: #ffffff;
+    opacity: 0.5;
+    border: none;
+  }
+
+  /* 信息行模仿终端 */
+  .info-line {
+    margin: 5px 0;
+    font-family: monospace;
+    letter-spacing: 0.3px;
+  }
+
+  /* 颜色类（保留原有其他标题的颜色类，主标题单独使用 motd-glow-title） */
+  .motd-blue { color: #3e9eff; }
+  .motd-skyblue { color: #5bc0ff; }
+  .motd-orange { color: #ffaa44; }
+  .motd-lightred { color: #ff7a7a; }
+  .motd-bigred { color: #dd0d0d; }
+  .motd-lightgreen { color: #a3ffb0; }
+  .motd-yelled { color: #ffd966; }
+  .motd-white { color: #f0f0f0; }
+  .motd-gold-bold { color: #ffcc44; font-weight: 700; }
+  .motd-skyblue-bold { color: #5bc0ff; font-weight: 700; }
+  .motd-center { text-align: center; display: block; }
+  .motd-large-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin: 12px 0 8px;
+  }
+
+  /* 主标题专用：白蓝渐变 + 微光 */
+  .motd-glow-title {
+    background: linear-gradient(120deg, #6250ec, #3a86ff, #80b3ff);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 12px rgba(58, 134, 255, 0.7), 0 0 4px rgba(255, 255, 255, 0.5);
+  }
+
+  /* 底部终端光标 */
+  .motd-footer {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 18px;
+    font-size: 0.7rem;
+    font-family: monospace;
+    color: #ccccdd;
+  }
+  .motd-cursor {
+    color: #ffffff;
+    font-weight: bold;
+  }
+
+  /* 禁止任何交互变化 */
+  .motd-scifi-static:hover,
+  .motd-scifi-static:active,
+  .motd-scifi-static *:hover,
+  .motd-scifi-static *:active {
+    background: #000000;
+    border-left-color: #ffffff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.2);
+    transition: none;
+  }
+</style>

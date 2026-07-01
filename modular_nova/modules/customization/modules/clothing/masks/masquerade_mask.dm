@@ -1,0 +1,47 @@
+
+/obj/item/clothing/mask/masquerade
+	name = "化装舞会面具"
+	desc = "你绝对猜不到面具下是谁，这伪装堪称完美！"
+	worn_icon = 'modular_nova/modules/GAGS/icons/mask/masquerade_mask_worn.dmi'
+	flags_1 = IS_PLAYER_COLORABLE_1
+	clothing_flags = MASKINTERNALS
+	up = TRUE
+	visor_flags_inv = HIDEFACE
+	actions_types = list(/datum/action/item_action/toggle)
+	alternate_worn_layer = ABOVE_BODY_FRONT_HEAD_LAYER
+	supports_variations_flags = CLOTHING_SNOUTED_VARIATION | CLOTHING_SNOUTED_VOX_VARIATION | CLOTHING_SNOUTED_BETTER_VOX_VARIATION
+	greyscale_colors = "#ececec#333333#9b1e1e"
+	icon = 'icons/map_icons/clothing/mask.dmi'
+	icon_state = "/obj/item/clothing/mask/masquerade"
+	post_init_icon_state = "maskerade"
+	greyscale_config = /datum/greyscale_config/masquerade_mask
+	greyscale_config_worn = /datum/greyscale_config/masquerade_mask/worn
+	greyscale_config_worn_muzzled = /datum/greyscale_config/masquerade_mask/worn/snouted
+	greyscale_config_worn_better_vox = /datum/greyscale_config/masquerade_mask/worn/better_vox
+	greyscale_config_worn_vox = /datum/greyscale_config/masquerade_mask/worn/vox
+	greyscale_config_worn_teshari = /datum/greyscale_config/masquerade_mask/worn/teshari
+
+/obj/item/clothing/mask/masquerade/attack_self(mob/user)
+	adjust_visor(user)
+
+/obj/item/clothing/mask/masquerade/visor_toggling()
+	up = !up
+	flags_inv ^= visor_flags_inv
+
+/obj/item/clothing/mask/masquerade/feathered
+	name = "羽毛化装舞会面具"
+	desc = "你绝对猜不到面具下是谁，这伪装堪称完美！这个面具甚至还带有一根羽毛，让它更显华丽！"
+	icon_state = "/obj/item/clothing/mask/masquerade/feathered"
+	post_init_icon_state = "maskerade_feather"
+
+/obj/item/clothing/mask/masquerade/two_colors
+	name = "双色化装舞会面具"
+	desc = "你绝对猜不到面具下是谁，这伪装堪称完美！它甚至有两种颜色，更添迷惑性！"
+	icon_state = "/obj/item/clothing/mask/masquerade/two_colors"
+	post_init_icon_state = "maskerade_two_colors"
+
+/obj/item/clothing/mask/masquerade/two_colors/feathered
+	name = "羽毛双色化装舞会面具"
+	desc = "你绝对猜不到面具下是谁，这伪装堪称完美！它甚至有两种颜色和一根羽毛，堪称迄今为止最华丽的化装舞会面具！"
+	icon_state = "/obj/item/clothing/mask/masquerade/two_colors/feathered"
+	post_init_icon_state = "maskerade_two_colors_feather"

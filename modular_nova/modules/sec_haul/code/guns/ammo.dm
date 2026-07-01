@@ -1,0 +1,37 @@
+/obj/item/ammo_box/advanced
+	multiple_sprites = AMMO_BOX_FULL_EMPTY
+
+/*
+*	9mm
+*/
+
+/obj/item/ammo_box/c9mm/rubber
+	name = "9mm rubber box"
+	ammo_type = /obj/item/ammo_casing/c9mm/rubber
+
+/obj/item/ammo_box/c9mm/ihdf
+	name = "9mm IHDF box"
+	ammo_type = /obj/item/ammo_casing/c9mm/ihdf
+
+/*
+*	10mm
+*/
+
+/obj/item/ammo_box/c10mm/rubber
+	name = "ammo box (10mm rubber)"
+	ammo_type = /obj/item/ammo_casing/c10mm/rubber
+
+/obj/item/ammo_box/c10mm/ihdf
+	name = "ammo box (10mm IHDF)"
+	ammo_type = /obj/item/ammo_casing/c10mm/ihdf
+
+/obj/item/ammo_box/c10mm/downer
+	name = "ammo box (10mm downer)"
+	ammo_type = /obj/item/ammo_casing/c10mm/downer
+
+/obj/item/ammo_box/magazine/m10mm/downer
+	name = "pistol magazine (10mm downer)"
+	desc = parent_type::desc + "<br>Carries rounds which severely exhaust targets. Fully exhausted targets sleep when shot, \
+		while partially exhausted targets have a chance to go to sleep scaling with how exhausted they are."
+	ammo_band_color = COLOR_CARP_LIGHT_BLUE
+	ammo_type = /obj/item/ammo_casing/c10mm/downer

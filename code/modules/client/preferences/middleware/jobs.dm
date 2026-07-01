@@ -1,0 +1,182 @@
+/datum/preference_middleware/jobs
+	action_delegations = list(
+		"set_job_preference" = PROC_REF(set_job_preference),
+		// NOVA EDIT
+		"set_job_title" = PROC_REF(set_job_title),
+		// NOVA EDIT END
+	)
+
+/datum/preference_middleware/jobs/proc/set_job_preference(list/params, mob/user)
+	var/job_title = params["job"]
+	var/level = params["level"]
+
+	if (level != null && level != JP_LOW && level != JP_MEDIUM && level != JP_HIGH)
+		return FALSE
+
+	var/datum/job/job = SSjob.get_job(job_title)
+
+	if (isnull(job))
+		return FALSE
+
+	if (job.faction != FACTION_STATION)
+		return FALSE
+
+	if (!preferences.set_job_preference_level(job, level))
+		return FALSE
+
+	preferences.character_preview_view?.update_body()
+	// NOVA EDIT ADDITION START
+	if(!SSticker.HasRoundStarted())
+		SEND_SIGNAL(user, COMSIG_JOB_PREF_UPDATED)
+	// NOVA EDIT ADDITION END
+
+	return TRUE
+
+// NOVA EDIT ADDITION START
+/datum/preference_middleware/jobs/proc/set_job_title(list/params, mob/user)
+	var/job_title = params["job"]
+	var/new_job_title = params["new_title"]
+
+	var/datum/job/job = SSjob.get_job(job_title)
+
+	if (isnull(job))
+		return FALSE
+
+	if (!(new_job_title in job.alt_titles))
+		return FALSE
+
+	preferences.alt_job_titles[job_title] = new_job_title
+	if(!SSticker.HasRoundStarted())
+		SEND_SIGNAL(user, COMSIG_JOB_PREF_UPDATED)
+
+	return TRUE
+// NOVA EDIT ADDITION END
+
+/datum/preference_middleware/jobs/get_constant_data()
+	var/list/data = list()
+
+	var/list/departments = list()
+	var/list/jobs = list()
+
+	for (var/datum/job/job as anything in SSjob.joinable_occupations)
+		if (job.job_flags & JOB_LATEJOIN_ONLY)
+			continue
+		var/datum/job_department/department_type = job.department_for_prefs || job.departments_list?[1]
+		if (isnull(department_type))
+			stack_trace("[job] does not have a department set, yet is a joinable occupation!")
+			continue
+
+		if (isnull(job.description))
+			stack_trace("[job] does not have a description set, yet is a joinable occupation!")
+			continue
+
+		var/department_name = initial(department_type.department_name)
+		if (isnull(departments[department_name]))
+			var/datum/job/department_head_type = initial(department_type.department_head)
+
+			departments[department_name] = list(
+				"head" = department_head_type && initial(department_head_type.title),
+				"display_name" = localized_department_name(department_name),
+			)
+
+		var/list/localized_alt_titles = localized_job_title_list(job.alt_titles)
+		jobs[job.title] = list(
+			"description" = job.description,
+			"department" = department_name,
+			"display_name" = localized_job_title(job.title),
+			"localized_alt_titles" = localized_alt_titles,
+			"nova_star" = job.nova_stars_only, // NOVA EDIT ADDITION
+		)
+
+	data["departments"] = departments
+	data["jobs"] = jobs
+
+	return data
+
+/datum/preference_middleware/jobs/get_ui_data(mob/user)
+	var/list/data = list()
+	// NOVA EDIT
+	if(isnull(preferences.alt_job_titles))
+		preferences.alt_job_titles = list()
+	// NOVA EDIT END
+	data["job_preferences"] = preferences.job_preferences
+	// NOVA EDIT
+	data["job_alt_titles"] = preferences.alt_job_titles
+	data["species_restricted_jobs"] = get_unavailable_jobs_for_species()
+	// NOVA EDIT END
+
+	return data
+
+/datum/preference_middleware/jobs/get_ui_static_data(mob/user)
+	var/list/data = list()
+	// NOVA EDIT
+	if(SSplayer_ranks.is_nova_star(user.client))
+		data["is_nova_star"] = TRUE
+	data["nova_star_restrictions"] = GLOB.nova_star_restrictions
+	// NOVA EDIT END
+	var/list/required_job_playtime = get_required_job_playtime(user)
+	if (!isnull(required_job_playtime))
+		data += required_job_playtime
+
+	var/list/job_bans = get_job_bans(user)
+	if (job_bans.len)
+		data["job_bans"] = job_bans
+	return data.len > 0 ? data : null
+
+/datum/preference_middleware/jobs/proc/get_required_job_playtime(mob/user)
+	var/list/data = list()
+
+	var/list/job_days_left = list()
+	var/list/job_required_experience = list()
+
+	for (var/datum/job/job as anything in SSjob.all_occupations)
+		if (job.job_flags & JOB_LATEJOIN_ONLY)
+			continue
+		var/required_playtime_remaining = job.required_playtime_remaining(user.client)
+		if (required_playtime_remaining)
+			job_required_experience[job.title] = list(
+				"experience_type" = job.get_exp_req_type(),
+				"required_playtime" = required_playtime_remaining,
+			)
+
+			continue
+
+		if (!job.player_old_enough(user.client))
+			job_days_left[job.title] = job.available_in_days(user.client)
+
+	if (job_days_left.len)
+		data["job_days_left"] = job_days_left
+
+	if (job_required_experience)
+		data["job_required_experience"] = job_required_experience
+
+	return data
+
+/datum/preference_middleware/jobs/proc/get_job_bans(mob/user)
+	var/list/data = list()
+
+	for (var/datum/job/job as anything in SSjob.all_occupations)
+		if (is_banned_from(user.client?.ckey, job.title))
+			data += job.title
+
+	return data
+
+//NOVA EDIT ADDITION BEGIN - CHECKING FOR INCOMPATIBLE SPECIES
+//This returns a list of jobs that are unavailable for the player's current species
+/datum/preference_middleware/jobs/proc/get_unavailable_jobs_for_species()
+	var/static/list/cached_unavailable_jobs = list()
+	var/datum/species/species = preferences.read_preference(/datum/preference/choiced/species)
+	var/species_id = species::id
+
+	if (cached_unavailable_jobs[species_id])
+		return cached_unavailable_jobs[species_id]
+
+	// Build the full list once and remember for future runs
+	var/list/unavailable = list()
+	for (var/datum/job/job as anything in SSjob.all_occupations)
+		if (job.has_banned_species(preferences, species_id))
+			unavailable += job.title
+
+	cached_unavailable_jobs[species_id] = unavailable
+	return unavailable
+//NOVA EDIT ADDITION END

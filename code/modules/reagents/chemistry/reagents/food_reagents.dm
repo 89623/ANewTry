@@ -1,0 +1,1372 @@
+///////////////////////////////////////////////////////////////////
+					//Food Reagents
+//////////////////////////////////////////////////////////////////
+
+
+// Part of the food code. Also is where all the food
+// condiments, additives, and such go.
+
+/datum/reagent/consumable
+	name = "消耗品"
+	taste_description = "generic food"
+	taste_mult = 4
+	inverse_chem_val = 0.1
+	inverse_chem = null
+	creation_purity = CONSUMABLE_STANDARD_PURITY
+	/// How much nutrition this reagent supplies. Look at get_nutriment_factor() for an understanding.
+	var/nutriment_factor = 1
+	/// affects mood, typically higher for mixed drinks with more complex recipes'
+	var/quality = 0
+
+/datum/reagent/consumable/New()
+	. = ..()
+	// All food reagents function at a fixed rate
+	chemical_flags |= REAGENT_UNAFFECTED_BY_METABOLISM
+
+/datum/reagent/consumable/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(!ishuman(affected_mob) || HAS_TRAIT(affected_mob, TRAIT_NOHUNGER))
+		return
+
+	// NOVA EDIT ADDITION BEGIN - Disable consumable digestion for synth stomach
+	if(istype(affected_mob.get_organ_slot(ORGAN_SLOT_STOMACH), /obj/item/organ/stomach/synth))
+		return
+	// NOVA EDIT ADDITION END
+	var/mob/living/carbon/human/affected_human = affected_mob
+	affected_human.adjust_nutrition(0.5 * get_nutriment_factor(affected_mob) * metabolization_ratio * seconds_per_tick)
+
+/datum/reagent/consumable/expose_mob(mob/living/exposed_mob, methods=TOUCH, reac_volume)
+	. = ..()
+	if(!(methods & INGEST) || !quality || HAS_TRAIT(exposed_mob, TRAIT_AGEUSIA))
+		return
+	switch(quality)
+		if (DRINK_REVOLTING)
+			exposed_mob.add_mood_event("quality_drink", /datum/mood_event/quality_revolting)
+		if (DRINK_NICE)
+			exposed_mob.add_mood_event("quality_drink", /datum/mood_event/quality_nice)
+		if (DRINK_GOOD)
+			exposed_mob.add_mood_event("quality_drink", /datum/mood_event/quality_good)
+		if (DRINK_VERYGOOD)
+			exposed_mob.add_mood_event("quality_drink", /datum/mood_event/quality_verygood)
+		if (DRINK_FANTASTIC)
+			exposed_mob.add_mood_event("quality_drink", /datum/mood_event/quality_fantastic)
+			exposed_mob.add_mob_memory(/datum/memory/good_drink, drink = src)
+		if (FOOD_AMAZING)
+			exposed_mob.add_mood_event("quality_food", /datum/mood_event/amazingtaste)
+			// The food this was in was really tasty, not the reagent itself
+			var/obj/item/the_real_food = holder.my_atom
+			if(isitem(the_real_food) && !is_reagent_container(the_real_food))
+				exposed_mob.add_mob_memory(/datum/memory/good_food, food = the_real_food)
+		// NOVA EDIT ADDITION BEGIN - Racial Drinks
+		if (RACE_DRINK)
+			exposed_mob.add_mood_event("quality_drink", /datum/mood_event/race_drink)
+		// NOVA EDIT ADDITION END
+
+/// Gets just how much nutrition this reagent supplies per server tick to the eater
+/datum/reagent/consumable/proc/get_nutriment_factor(mob/living/carbon/eater)
+	return nutriment_factor * REAGENTS_METABOLISM * purity * 2
+
+/datum/reagent/consumable/nutriment
+	name = "Nutriment-营养"
+	description = "人体所需的所有维生素、矿物质和碳水化合物，以纯净形式存在。"
+	nutriment_factor = 15
+	color = "#664330" // rgb: 102, 67, 48
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+	/// Whether this reagent should get the tastes of food it's in applied onto it
+	var/carry_food_tastes = TRUE
+
+	var/brute_heal = 1
+	var/burn_heal = 0
+
+/datum/reagent/consumable/nutriment/on_hydroponics_apply(obj/machinery/hydroponics/mytray, mob/user)
+	mytray.adjust_plant_health(round(volume * 0.2))
+
+/datum/reagent/consumable/nutriment/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(SPT_PROB(30, seconds_per_tick))
+		var/heal = 0.5 * brute_heal * metabolization_ratio
+		if(affected_mob.heal_bodypart_damage(brute = heal, burn = heal, updating_health = FALSE, required_bodytype = BODYTYPE_ORGANIC))
+			return UPDATE_MOB_HEALTH
+
+/datum/reagent/consumable/nutriment/on_new(list/supplied_data)
+	. = ..()
+	if(!data)
+		return
+	// taste data can sometimes be ("salt" = 3, "chips" = 1)
+	// and we want it to be in the form ("salt" = 0.75, "chips" = 0.25)
+	// which is called "normalizing"
+	if(!supplied_data)
+		supplied_data = data
+
+	// if data isn't an associative list, this has some WEIRD side effects
+	// TODO probably check for assoc list?
+
+	data = counterlist_normalise(supplied_data)
+
+/datum/reagent/consumable/nutriment/on_merge(list/mix_data, amount)
+	. = ..()
+	if(!islist(mix_data) || !mix_data.len)
+		return
+
+	// data for nutriment is one or more (flavour -> ratio)
+	// where all the ratio values adds up to 1
+
+	var/list/taste_amounts = list()
+	if(data)
+		taste_amounts = data.Copy()
+
+	counterlist_scale(taste_amounts, volume)
+
+	var/list/other_taste_amounts = mix_data.Copy()
+	counterlist_scale(other_taste_amounts, amount)
+
+	counterlist_combine(taste_amounts, other_taste_amounts)
+
+	counterlist_normalise(taste_amounts)
+
+	data = taste_amounts
+
+/datum/reagent/consumable/nutriment/get_taste_description(mob/living/taster)
+	if(length(data))
+		return data
+	return ..()
+
+/datum/reagent/consumable/nutriment/vitamin
+	name = "Vitamin-维生素"
+	description = "人体所需的所有最佳维生素、矿物质和碳水化合物，以纯净形式存在。"
+	taste_description = "bitterness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	brute_heal = 1
+	burn_heal = 1
+
+/datum/reagent/consumable/nutriment/vitamin/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(affected_mob.satiety < MAX_SATIETY)
+		affected_mob.satiety += 15 * metabolization_ratio * seconds_per_tick
+
+/// The basic resource of vat growing.
+/datum/reagent/consumable/nutriment/protein
+	name = "Protein-蛋白质"
+	description = "一种由氨基酸组成的天然聚酰胺。是大多数已知生命形式的基本组成部分。"
+	taste_description = "chalk"
+	brute_heal = 0.8 //Rewards the player for eating a balanced diet.
+	nutriment_factor = 9 //45% as calorie dense as oil.
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/protein
+
+/datum/reagent/consumable/nutriment/fat
+	name = "脂肪"
+	description = "存在于植物油和动物脂肪组织中的甘油三酯。"
+	color = "#f0eed7"
+	taste_description = "lard"
+	brute_heal = 0
+	burn_heal = 1
+	nutriment_factor = 18 // Twice as nutritious compared to protein and carbohydrates
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	var/fry_temperature = 450 //Around ~350 F (117 C) which deep fryers operate around in the real world
+
+/datum/reagent/consumable/nutriment/fat/expose_obj(obj/exposed_obj, reac_volume, methods=TOUCH, show_message=TRUE)
+	. = ..()
+	if(!holder || (holder.chem_temp <= fry_temperature))
+		return
+	if(!isitem(exposed_obj) || HAS_TRAIT(exposed_obj, TRAIT_FOOD_FRIED))
+		return
+	if(is_type_in_typecache(exposed_obj, GLOB.oilfry_blacklisted_items) || (exposed_obj.resistance_flags & INDESTRUCTIBLE))
+		exposed_obj.visible_message(span_notice("热油对[exposed_obj]没有效果！"))
+		return
+	if(exposed_obj.atom_storage)
+		exposed_obj.visible_message(span_notice("热油在[exposed_obj]接触时四处飞溅。看起来油锅太满了，没法好好烹饪！"))
+		return
+
+	exposed_obj.visible_message(span_warning("[exposed_obj]被热油泼溅后迅速炸熟了！不知怎么做到的。"))
+	exposed_obj.AddElement(/datum/element/fried_item, volume SECONDS)
+	exposed_obj.reagents.add_reagent(type, reac_volume, data, holder.chem_temp)
+
+/datum/reagent/consumable/nutriment/fat/expose_mob(mob/living/exposed_mob, methods = TOUCH, reac_volume, show_message = TRUE, touch_protection = 0)
+	. = ..()
+	if(!(methods & (VAPOR|TOUCH)) || isnull(holder) || (holder.chem_temp < fry_temperature)) //Directly coats the mob, and doesn't go into their bloodstream
+		return
+
+	var/burn_damage = ((holder.chem_temp / fry_temperature) * 0.33) //Damage taken per unit
+	if(methods & TOUCH)
+		burn_damage *= max(1 - touch_protection, 0)
+	var/FryLoss = round(min(38, burn_damage * reac_volume))
+	if(HAS_TRAIT(exposed_mob, TRAIT_OIL_FRIED))
+		return
+
+	exposed_mob.visible_message(span_warning("沸腾的油覆盖[exposed_mob]时发出嘶嘶声！"), \
+	span_userdanger("你被沸腾的油覆盖了！"))
+	if(FryLoss)
+		exposed_mob.emote("scream")
+		exposed_mob.adjust_fire_loss(FryLoss)
+	playsound(exposed_mob, 'sound/machines/fryer/deep_fryer_emerge.ogg', 25, TRUE)
+	ADD_TRAIT(exposed_mob, TRAIT_OIL_FRIED, "cooking_oil_react")
+	addtimer(CALLBACK(exposed_mob, TYPE_PROC_REF(/mob/living, unfry_mob)), 2 SECONDS)
+
+/datum/reagent/consumable/nutriment/fat/expose_turf(turf/open/exposed_turf, reac_volume)
+	. = ..()
+	if(!istype(exposed_turf))
+		return
+	exposed_turf.MakeSlippery(TURF_WET_LUBE, min_wet_time = 10 SECONDS, wet_time_to_add = reac_volume*2 SECONDS)
+	var/obj/effect/hotspot/hotspot = (locate(/obj/effect/hotspot) in exposed_turf)
+	if(hotspot)
+		var/datum/gas_mixture/lowertemp = exposed_turf.remove_air(exposed_turf.air.total_moles())
+		lowertemp.temperature = max( min(lowertemp.temperature-2000,lowertemp.temperature / 2) ,0)
+		lowertemp.react(src)
+		exposed_turf.assume_air(lowertemp)
+		qdel(hotspot)
+
+/datum/reagent/consumable/nutriment/fat/oil
+	name = "植物油"
+	description = "一种从植物脂肪中提取的烹饪用油。用于食物制备和煎炸。"
+	color = "#EADD6B" //RGB: 234, 221, 107 (based off of canola oil)
+	taste_mult = 0.8
+	taste_description = "oil"
+	carry_food_tastes = FALSE
+	nutriment_factor = 7 //Not very healthy on its own
+	metabolization_rate = 10 * REAGENTS_METABOLISM
+	penetrates_skin = NONE
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/vegetable_oil
+
+/datum/reagent/consumable/nutriment/fat/oil/olive
+	name = "橄榄油"
+	description = "一种高品质的油，适合用于油是关键风味的菜肴。"
+	taste_description = "olive oil"
+	color = "#DBCF5C"
+	nutriment_factor = 10
+	default_container = /obj/item/reagent_containers/condiment/olive_oil
+
+/datum/reagent/consumable/nutriment/fat/oil/corn
+	name = "Corn Oil-玉米油"
+	description = "一种从各种玉米中提取的油。"
+	color = "#302000" // rgb: 48, 32, 0
+	taste_description = "slime"
+	nutriment_factor = 5 //it's a very cheap oil
+
+/datum/reagent/consumable/nutriment/organ_tissue
+	name = "Organ Tissue-器官组织"
+	description = "构成器官主体的天然组织，提供多种维生素和矿物质。"
+	taste_description = "rich earthy pungent"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/nutriment/organ_tissue/stomach_lining
+	name = "胃壁组织"
+	description = "保护你胃部安全的天然组织。"
+	carry_food_tastes = FALSE // Don't want stomachs to leech the flavours of what they eat
+
+/datum/reagent/consumable/nutriment/cloth_fibers
+	name = "Cloth Fibers-衣物纤维"
+	description = "这实际上不是一种营养物，但它确实能让蛾人维持一小段时间……"
+	taste_description = "cloth"
+	nutriment_factor = 30
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	brute_heal = 0
+	burn_heal = 0
+	///Amount of satiety that will be drained when the cloth_fibers is fully metabolized
+	var/delayed_satiety_drain = 2 * CLOTHING_NUTRITION_GAIN
+
+/datum/reagent/consumable/nutriment/cloth_fibers/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(affected_mob.satiety < MAX_SATIETY)
+		affected_mob.adjust_nutrition(CLOTHING_NUTRITION_GAIN)
+		delayed_satiety_drain += CLOTHING_NUTRITION_GAIN
+
+/datum/reagent/consumable/nutriment/cloth_fibers/on_mob_delete(mob/living/carbon/affected_mob)
+	. = ..()
+	if(!iscarbon(affected_mob))
+		return
+
+	var/mob/living/carbon/carbon_mob = affected_mob
+	carbon_mob.adjust_nutrition(-delayed_satiety_drain)
+
+/datum/reagent/consumable/nutriment/mineral
+	name = "矿物浆"
+	description = "矿物被捣成的糊状物，只有当你也是石头做的时才有营养。"
+	taste_description = "minerals"
+	color = COLOR_WEBSAFE_DARK_GRAY
+	chemical_flags = NONE
+	brute_heal = 0
+	burn_heal = 0
+
+/datum/reagent/consumable/nutriment/mineral/get_nutriment_factor(mob/living/carbon/eater)
+	if(HAS_TRAIT(eater, TRAIT_ROCK_EATER))
+		return ..()
+
+	// You cannot eat rocks, it gives no nutrition
+	return 0
+
+/datum/reagent/consumable/sugar
+	name = "Sugar-糖"
+	description = "这种有机化合物通常被称为食糖，有时也称为蔗糖。这种白色、无味、结晶粉末具有令人愉悦的甜味。"
+	color = COLOR_WHITE // rgb: 255, 255, 255
+	taste_mult = 1.5 // stop sugar drowning out other flavours
+	nutriment_factor = 2
+	metabolization_rate = 5 * REAGENTS_METABOLISM
+	creation_purity = 1 // impure base reagents are a big no-no
+	overdose_threshold = 120 // Hyperglycaemic shock
+	taste_description = "sweetness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/sugar
+
+// Plants should not have sugar, they can't use it and it prevents them getting water/ nutients, it is good for mold though...
+/datum/reagent/consumable/sugar/on_hydroponics_apply(obj/machinery/hydroponics/mytray, mob/user)
+	mytray.adjust_weedlevel(rand(1, 2))
+	mytray.adjust_pestlevel(rand(1, 2))
+
+/datum/reagent/consumable/sugar/overdose_start(mob/living/affected_mob, metabolization_ratio)
+	. = ..()
+	to_chat(affected_mob, span_userdanger("你陷入了高血糖休克！别再吃奶油夹心饼干了！"))
+	affected_mob.AdjustSleeping(20 SECONDS)
+
+/datum/reagent/consumable/sugar/overdose_process(mob/living/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	affected_mob.adjust_drowsiness_up_to((0.5 SECONDS * metabolization_ratio * seconds_per_tick), 60 SECONDS)
+
+/datum/reagent/consumable/sugar/expose_mob(mob/living/exposed_mob, methods=TOUCH, reac_volume)
+	. = ..()
+	if(methods & INGEST)
+		exposed_mob.check_allergic_reaction(SUGAR, chance = reac_volume * 10, histamine_add = min(10, reac_volume * 2))
+
+/datum/reagent/consumable/virus_food
+	name = "Virus Food-病毒食物"
+	description = "水和牛奶的混合物。病毒细胞可以利用这种混合物进行繁殖。"
+	nutriment_factor = 2
+	color = "#899613" // rgb: 137, 150, 19
+	taste_description = "watery milk"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+// Compost for EVERYTHING
+/datum/reagent/consumable/virus_food/on_hydroponics_apply(obj/machinery/hydroponics/mytray, mob/user)
+	mytray.adjust_plant_health(-round(volume * 0.5))
+
+/datum/reagent/consumable/soysauce
+	name = "Soysauce-酱油"
+	description = "一种由大豆制成的咸味酱汁。"
+	nutriment_factor = 2
+	color = "#792300" // rgb: 121, 35, 0
+	taste_description = "umami"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/soysauce
+
+/datum/reagent/consumable/ketchup
+	name = "Ketchup-番茄酱"
+	description = "番茄酱，不管怎么叫。它就是番茄糊。"
+	nutriment_factor = 5
+	color = "#731008" // rgb: 115, 16, 8
+	taste_description = "ketchup"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/ketchup
+
+/datum/reagent/consumable/mustard
+	name = "芥末酱"
+	description = "辛辣、刺激的酱汁，由芥菜植物制成。"
+	nutriment_factor = 5
+	color = "#ffd129"
+	taste_description = "mustard"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/mustard
+
+/datum/reagent/consumable/capsaicin
+	name = "Capsaicin Oil-辣椒油"
+	description = "这就是让辣椒变辣的东西。"
+	color = "#B31008" // rgb: 179, 16, 8
+	taste_description = "hot peppers"
+	taste_mult = 1.5
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/capsaicin/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	var/heating = 0
+	switch(current_cycle)
+		if(1 to 15)
+			heating = 5
+			if(holder.has_reagent(/datum/reagent/cryostylane))
+				holder.remove_reagent(/datum/reagent/cryostylane, 2.5 * metabolization_ratio * seconds_per_tick)
+		if(15 to 25)
+			heating = 10
+		if(25 to 35)
+			heating = 15
+		if(35 to INFINITY)
+			heating = 20
+	affected_mob.adjust_bodytemperature(0.5 * TEMPERATURE_DAMAGE_COEFFICIENT * heating * metabolization_ratio * seconds_per_tick)
+
+/datum/reagent/consumable/frostoil
+	name = "Frost Oil-霜油"
+	description = "一种能显著降低体温的特殊油。从辣椒和史莱姆中提取。"
+	color = "#8BA6E9" // rgb: 139, 166, 233
+	taste_description = "mint"
+	ph = 13 //HMM! I wonder
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	///40 joules per unit.
+	specific_heat = 40
+	default_container = /obj/item/reagent_containers/cup/bottle/frostoil
+
+/datum/reagent/consumable/frostoil/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	var/cooling = 0
+	switch(current_cycle)
+		if(1 to 15)
+			cooling = -10
+			if(holder.has_reagent(/datum/reagent/consumable/capsaicin))
+				holder.remove_reagent(/datum/reagent/consumable/capsaicin, 2.5 * metabolization_ratio * seconds_per_tick)
+		if(15 to 25)
+			cooling = -20
+		if(25 to 35)
+			cooling = -30
+			if(prob(1))
+				affected_mob.emote("shiver")
+		if(35 to INFINITY)
+			cooling = -40
+			if(prob(5))
+				affected_mob.emote("shiver")
+	affected_mob.adjust_bodytemperature(0.5 * TEMPERATURE_DAMAGE_COEFFICIENT * cooling * metabolization_ratio * seconds_per_tick, 50)
+
+/datum/reagent/consumable/frostoil/expose_turf(turf/exposed_turf, reac_volume)
+	. = ..()
+	if(reac_volume < 1)
+		return
+	if(isopenturf(exposed_turf))
+		var/turf/open/exposed_open_turf = exposed_turf
+		exposed_open_turf.MakeSlippery(wet_setting=TURF_WET_ICE, min_wet_time=100, wet_time_to_add=reac_volume SECONDS) // Is less effective in high pressure/high heat capacity environments. More effective in low pressure.
+		var/temperature = exposed_open_turf.air.temperature
+		var/heat_capacity = exposed_open_turf.air.heat_capacity()
+		exposed_open_turf.air.temperature = max(exposed_open_turf.air.temperature - ((temperature - TCMB) * (heat_capacity * reac_volume * specific_heat) / (heat_capacity + reac_volume * specific_heat)) / heat_capacity, TCMB) // Exchanges environment temperature with reagent. Reagent is at 2.7K with a heat capacity of 40J per unit.
+	if(reac_volume < 5)
+		return
+	for(var/mob/living/basic/slime/exposed_slime in exposed_turf)
+		exposed_slime.adjust_tox_loss(rand(15,30))
+
+/datum/reagent/consumable/condensedcapsaicin
+	name = "Condensed Capsaicin-浓缩辣椒素"
+	description = "一种用于自卫和警务工作的化学制剂。"
+	color = "#B31008" // rgb: 179, 16, 8
+	taste_description = "scorching agony"
+	penetrates_skin = NONE
+	ph = 7.4
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/cup/bottle/capsaicin
+
+/datum/reagent/consumable/condensedcapsaicin/expose_mob(mob/living/exposed_mob, methods=TOUCH, reac_volume)
+	if(!ishuman(exposed_mob))
+		return
+
+	var/mob/living/carbon/victim = exposed_mob
+	if(methods & (TOUCH|VAPOR|INHALE))
+		//check for protection
+		//actually handle the pepperspray effects
+		if (!victim.is_pepper_proof()) // you need both eye and mouth protection
+			if(prob(5))
+				victim.emote("scream")
+			victim.emote("cry")
+			victim.set_eye_blur_if_lower(10 SECONDS)
+			victim.set_temp_blindness_if_lower(6 SECONDS)
+			victim.set_confusion_if_lower(5 SECONDS)
+			victim.Knockdown(3 SECONDS)
+			victim.add_movespeed_modifier(/datum/movespeed_modifier/reagent/pepperspray)
+			addtimer(CALLBACK(victim, TYPE_PROC_REF(/mob, remove_movespeed_modifier), /datum/movespeed_modifier/reagent/pepperspray), 10 SECONDS)
+			ADD_TRAIT(victim, TRAIT_ANOSMIA, type)
+			addtimer(TRAIT_CALLBACK_REMOVE(victim, TRAIT_ANOSMIA, type), 30 SECONDS, TIMER_OVERRIDE|TIMER_UNIQUE)
+		victim.update_damage_hud()
+	if(methods & INGEST)
+		if(!holder.has_reagent(/datum/reagent/consumable/milk))
+			if(prob(15))
+				to_chat(exposed_mob, span_danger("[pick("Your head pounds.", "Your mouth feels like it's on fire.", "You feel dizzy.")]"))
+			if(prob(10))
+				victim.set_eye_blur_if_lower(2 SECONDS)
+			if(prob(10))
+				victim.set_dizzy_if_lower(2 SECONDS)
+			if(prob(5))
+				victim.vomit(VOMIT_CATEGORY_DEFAULT)
+	return ..()
+
+/datum/reagent/consumable/condensedcapsaicin/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(!holder.has_reagent(/datum/reagent/consumable/milk))
+		if(SPT_PROB(5, seconds_per_tick))
+			affected_mob.visible_message(span_warning("[affected_mob] [pick("dry heaves!","coughs!","splutters!")]"))
+
+/datum/reagent/consumable/salt
+	name = "Table Salt-食盐"
+	description = "一种由氯化钠制成的盐。通常用于给食物调味。"
+	color = COLOR_WHITE // rgb: 255,255,255
+	taste_description = "salt"
+	penetrates_skin = NONE
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/saltshaker
+
+/datum/reagent/consumable/salt/expose_turf(turf/exposed_turf, reac_volume) //Creates an umbra-blocking salt pile
+	. = ..()
+	if(!istype(exposed_turf) || (reac_volume < 1))
+		return
+	exposed_turf.spawn_unique_cleanable(/obj/effect/decal/cleanable/food/salt)
+
+/datum/reagent/consumable/salt/expose_mob(mob/living/exposed_mob, methods, reac_volume)
+	. = ..()
+	if(!iscarbon(exposed_mob))
+		return
+	var/mob/living/carbon/carbies = exposed_mob
+	if(!(methods & (PATCH|TOUCH|VAPOR)))
+		return
+	for(var/datum/wound/iter_wound as anything in carbies.all_wounds)
+		iter_wound.on_salt(reac_volume, carbies)
+
+// Salt can help with wounds by soaking up fluid, but undiluted salt will also cause irritation from the loose crystals, and it might soak up the body's water as well!
+// A saltwater mixture would be best, but we're making improvised chems here, not real ones.
+/datum/wound/proc/on_salt(reac_volume, mob/living/carbon/carbies)
+	return
+
+/datum/wound/pierce/bleed/on_salt(reac_volume, mob/living/carbon/carbies)
+	adjust_blood_flow(-0.06 * reac_volume, initial_flow * 0.6) // 20u of a salt shacker * 0.1 = -1.6~ blood flow, but is always clamped to, at best, third blood loss from that wound.
+	// Crystal irritation worsening recovery.
+	gauzed_clot_rate *= 0.65
+	to_chat(carbies, span_notice("盐粒渗入并粘附在[LOWER_TEXT(src)]上，虽然刺激皮肤带来痛感，但吸收了大部分血液。"))
+
+/datum/wound/slash/flesh/on_salt(reac_volume, mob/living/carbon/carbies)
+	adjust_blood_flow(-0.1 * reac_volume, initial_flow * 0.5) // 20u of a salt shacker * 0.1 = -2~ blood flow, but is always clamped to, at best, halve blood loss from that wound.
+	// Crystal irritation worsening recovery.
+	clot_rate *= 0.75
+	to_chat(carbies, span_notice("盐粒渗入并粘附在[LOWER_TEXT(src)]上，虽然刺激皮肤带来痛感，但吸收了大部分血液。"))
+
+/datum/wound/burn/flesh/on_salt(reac_volume)
+	// Slightly sanitizes and disinfects, but also increases infestation rate (some bacteria are aided by salt), and decreases flesh healing (can damage the skin from moisture absorption)
+	sanitization += VALUE_PER(0.4, 30) * reac_volume
+	infection -= max(VALUE_PER(0.3, 30) * reac_volume, 0)
+	infection_rate += VALUE_PER(0.12, 30) * reac_volume
+	flesh_healing -= max(VALUE_PER(5, 30) * reac_volume, 0)
+	to_chat(victim, span_notice("盐粒渗入并粘附在[LOWER_TEXT(src)]上，刺激皮肤带来痛感！过了一会儿，感觉稍微好点了。"))
+
+/datum/reagent/consumable/blackpepper
+	name = "Black Pepper-黑胡椒"
+	description = "一种由胡椒粒研磨而成的粉末。*阿——阿——阿嚏！*"
+	// no color (ie, black)
+	taste_description = "pepper"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/peppermill
+
+/datum/reagent/consumable/coco
+	name = "Coco Powder-可可粉"
+	description = "一种由可可豆制成的油腻、苦涩的糊状物。"
+	nutriment_factor = 5
+	color = "#302000" // rgb: 48, 32, 0
+	taste_description = "bitterness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/garlic //NOTE: having garlic in your blood stops vampires from biting you.
+	name = "Garlic Juice-大蒜汁"
+	description = "碾碎的大蒜。厨师们喜欢它，但它会让你闻起来很糟糕。"
+	color = "#FEFEFE"
+	taste_description = "garlic"
+	metabolization_rate = 0.15 * REAGENTS_METABOLISM
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	added_traits = list(TRAIT_GARLIC_BREATH)
+
+/datum/reagent/consumable/garlic/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(isvampire(affected_mob)) //incapacitating but not lethal. Unfortunately, vampires cannot vomit.
+		if(SPT_PROB(min((current_cycle-1)/2, 12.5), seconds_per_tick))
+			if(HAS_TRAIT(affected_mob, TRAIT_ANOSMIA))
+				to_chat(affected_mob, span_danger("你感觉不对劲，你的力量正在流失！你几乎无法思考..."))
+			else
+				to_chat(affected_mob, span_danger("你无法摆脱鼻子里的蒜味！你几乎无法思考..."))
+			affected_mob.Paralyze(10)
+			affected_mob.set_jitter_if_lower(20 SECONDS)
+	else
+		var/obj/item/organ/liver/liver = affected_mob.get_organ_slot(ORGAN_SLOT_LIVER)
+		if(liver && HAS_TRAIT(liver, TRAIT_CULINARY_METABOLISM))
+			if(SPT_PROB(10, seconds_per_tick)) //stays in the system much longer than sprinkles/banana juice, so heals slower to partially compensate
+				if(affected_mob.heal_bodypart_damage(brute = 3.34 * metabolization_ratio, burn = 3.34 * metabolization_ratio, updating_health = FALSE))
+					return UPDATE_MOB_HEALTH
+
+/datum/reagent/consumable/tearjuice
+	name = "Tear Juice-泪汁"
+	description = "从某些洋葱中提取的致盲物质。"
+	color = "#c0c9a0"
+	taste_description = "bitterness"
+	ph = 5
+
+/datum/reagent/consumable/tearjuice/expose_mob(mob/living/exposed_mob, methods = INGEST, reac_volume)
+	. = ..()
+	if(!ishuman(exposed_mob))
+		return
+
+	var/mob/living/carbon/victim = exposed_mob
+	if(methods & (TOUCH | VAPOR | INHALE))
+		var/tear_proof = victim.is_eyes_covered()
+		if (!tear_proof)
+			to_chat(exposed_mob, span_warning("你的眼睛刺痛！"))
+			victim.emote("cry")
+			victim.adjust_eye_blur(6 SECONDS)
+
+/datum/reagent/consumable/sprinkles
+	name = "Sprinkles-糖屑"
+	description = "五颜六色的小糖粒，常见于甜甜圈上。深受警察喜爱。"
+	color = COLOR_MAGENTA // rgb: 255, 0, 255
+	taste_description = "childhood whimsy"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/sprinkles/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	var/obj/item/organ/liver/liver = affected_mob.get_organ_slot(ORGAN_SLOT_LIVER)
+	if(liver && HAS_TRAIT(liver, TRAIT_LAW_ENFORCEMENT_METABOLISM))
+		if(affected_mob.heal_bodypart_damage(brute = 0.5 * metabolization_ratio * seconds_per_tick, burn = 0.5 * metabolization_ratio * seconds_per_tick, updating_health = FALSE))
+			return UPDATE_MOB_HEALTH
+
+/datum/reagent/consumable/enzyme
+	name = "Universal Enzyme-通用酶"
+	description = "一种用于制备某些化学品和食品的通用酶。"
+	color = "#365E30" // rgb: 54, 94, 48
+	taste_description = "sweetness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/enzyme
+
+/datum/reagent/consumable/dry_ramen
+	name = "Dry Ramen-干拉面"
+	description = "太空时代的食物，自1958年8月25日起。包含干面条、蔬菜以及遇水会沸腾的化学物质。"
+	color = "#302000" // rgb: 48, 32, 0
+	taste_description = "dry and cheap noodles"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/cup/glass/dry_ramen
+
+/datum/reagent/consumable/hot_ramen
+	name = "Hot Ramen-热拉面"
+	description = "面条是煮熟的，味道是人造的，就像回到了学校一样。"
+	nutriment_factor = 5
+	color = "#302000" // rgb: 48, 32, 0
+	taste_description = "wet and cheap noodles"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/cup/glass/dry_ramen
+
+/datum/reagent/consumable/nutraslop
+	name = "Nutraslop-营养液"
+	description = "前几天供应的监狱剩菜混合物。"
+	nutriment_factor = 5
+	color = "#3E4A00" // rgb: 62, 74, 0
+	taste_description = "your imprisonment"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/hot_ramen/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	affected_mob.adjust_bodytemperature(5 * TEMPERATURE_DAMAGE_COEFFICIENT * metabolization_ratio * seconds_per_tick, 0, affected_mob.get_body_temp_normal())
+
+/datum/reagent/consumable/hell_ramen
+	name = "Hell Ramen-地狱拉面"
+	description = "面条是煮熟的，味道是人造的，就像回到了学校一样。"
+	nutriment_factor = 5
+	color = "#302000" // rgb: 48, 32, 0
+	taste_description = "wet and cheap noodles on fire"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/hell_ramen/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	affected_mob.adjust_bodytemperature(5 * TEMPERATURE_DAMAGE_COEFFICIENT * metabolization_ratio * seconds_per_tick)
+
+/datum/reagent/consumable/flour
+	name = "Flour-面粉"
+	description = "这就是你涂满全身假装是鬼的东西。"
+	color = COLOR_WHITE // rgb: 0, 0, 0
+	taste_description = "chalky wheat"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED|REAGENT_AFFECTS_WOUNDS
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/flour
+
+/datum/reagent/consumable/flour/expose_mob(mob/living/exposed_mob, methods, reac_volume)
+	. = ..()
+	if(!iscarbon(exposed_mob))
+		return
+	var/mob/living/carbon/carbies = exposed_mob
+	if(!(methods & (PATCH|TOUCH|VAPOR)))
+		return
+	for(var/datum/wound/iter_wound as anything in carbies.all_wounds)
+		iter_wound.on_flour(reac_volume, carbies)
+
+/datum/wound/proc/on_flour(reac_volume, mob/living/carbon/carbies)
+	return
+
+/datum/wound/pierce/bleed/on_flour(reac_volume, mob/living/carbon/carbies)
+	adjust_blood_flow(-0.015 * reac_volume) // 30u of a flour sack * 0.015 = -0.45~ blood flow, prettay good
+	to_chat(carbies, span_notice("面粉渗入[LOWER_TEXT(src)]，痛苦地将其吸干并吸收了一些血液。"))
+	// When some nerd adds infection for wounds, make this increase the infection
+
+/datum/wound/slash/flesh/on_flour(reac_volume, mob/living/carbon/carbies)
+	adjust_blood_flow(-0.04 * reac_volume) // 30u of a flour sack * 0.04 = -1.25~ blood flow, pretty good!
+	to_chat(carbies, span_notice("面粉渗入[LOWER_TEXT(src)]，痛苦地吸干了部分组织并吸收了一点血液。"))
+	// When some nerd adds infection for wounds, make this increase the infection
+
+// Don't pour flour onto burn wounds, it increases infection risk! Very unwise. Backed up by REAL info from REAL professionals.
+// https://www.reuters.com/article/uk-factcheck-flour-burn-idUSKCN26F2N3
+/datum/wound/burn/flesh/on_flour(reac_volume)
+	to_chat(victim, span_notice("面粉渗入[LOWER_TEXT(src)]，给你带来剧烈的疼痛！这恐怕不是个好主意……"))
+	sanitization -= min(0, 1)
+	infection += 0.2
+	return
+
+/datum/reagent/consumable/flour/expose_turf(turf/exposed_turf, reac_volume)
+	. = ..()
+	if(isspaceturf(exposed_turf))
+		return
+
+	var/obj/effect/decal/cleanable/food/flour/flour_decal = exposed_turf.spawn_unique_cleanable(/obj/effect/decal/cleanable/food/flour)
+	if(flour_decal)
+		flour_decal.reagents.add_reagent(/datum/reagent/consumable/flour, reac_volume)
+
+/datum/reagent/consumable/cherryjelly
+	name = "Cherry Jelly-樱桃果冻"
+	description = "绝对是最好的。只能涂抹在具有出色横向对称性的食物上。"
+	nutriment_factor = 10
+	color = "#801E28" // rgb: 128, 30, 40
+	taste_description = "cherry"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/cherryjelly
+
+/datum/reagent/consumable/bluecherryjelly
+	name = "Blue Cherry Jelly-蓝樱桃果冻"
+	description = "蓝色且更美味的樱桃果冻。"
+	color = "#00F0FF"
+	taste_description = "blue cherry"
+
+/datum/reagent/consumable/rice
+	name = "Rice-大米"
+	description = "微小的营养谷物"
+	nutriment_factor = 3
+	color = COLOR_WHITE // rgb: 0, 0, 0
+	taste_description = "rice"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/rice
+
+/datum/reagent/consumable/rice_flour
+	name = "米粉"
+	description = "面粉与大米混合"
+	color = COLOR_WHITE // rgb: 0, 0, 0
+	taste_description = "chalky wheat with rice"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/vanilla
+	name = "Vanilla Powder-香草粉"
+	description = "一种由香草豆荚制成的油腻、苦涩的糊状物。"
+
+	nutriment_factor = 5
+	color = "#FFFACD"
+	taste_description = "vanilla"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/eggyolk
+	name = "Egg Yolk-蛋黄"
+	description = "它富含蛋白质。"
+	nutriment_factor = 8
+	color = "#FFB500"
+	taste_description = "egg"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/eggwhite
+	name = "Egg White-蛋白"
+	description = "它富含更多的蛋白质。"
+	nutriment_factor = 4
+	color = "#fffdf7"
+	taste_description = "bland egg"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/corn_starch
+	name = "Corn Starch-玉米淀粉"
+	description = "一种滑溜的溶液。"
+	color = "#DBCE95"
+	taste_description = "slime"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED|REAGENT_AFFECTS_WOUNDS
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+// Starch has similar absorbing properties to flour (Stronger here because it's rarer)
+/datum/reagent/consumable/corn_starch/expose_mob(mob/living/exposed_mob, methods, reac_volume)
+	. = ..()
+	if(!iscarbon(exposed_mob))
+		return
+	var/mob/living/carbon/carbies = exposed_mob
+	if(!(methods & (PATCH|TOUCH|VAPOR)))
+		return
+	for(var/datum/wound/iter_wound as anything in carbies.all_wounds)
+		iter_wound.on_starch(reac_volume, carbies)
+
+/datum/wound/proc/on_starch(reac_volume, mob/living/carbon/carbies)
+	return
+
+/datum/wound/pierce/bleed/on_starch(reac_volume, mob/living/carbon/carbies)
+	adjust_blood_flow(-0.03 * reac_volume)
+	to_chat(carbies, span_notice("黏滑的淀粉渗入[LOWER_TEXT(src)]，痛苦地吸干了部分组织并吸收了一点血液。"))
+	// When some nerd adds infection for wounds, make this increase the infection
+	return
+
+/datum/wound/slash/flesh/on_starch(reac_volume, mob/living/carbon/carbies)
+	adjust_blood_flow(-0.06 * reac_volume)
+	to_chat(carbies, span_notice("黏滑的淀粉渗入[LOWER_TEXT(src)]，痛苦地将其吸干并吸收了一些血液。"))
+	// When some nerd adds infection for wounds, make this increase the infection
+	return
+
+/datum/wound/burn/flesh/on_starch(reac_volume, mob/living/carbon/carbies)
+	to_chat(carbies, span_notice("黏滑的淀粉渗入[LOWER_TEXT(src)]，给你带来剧烈的疼痛！这恐怕不是个好主意……"))
+	sanitization -= min(0, 0.5)
+	infection += 0.1
+	return
+
+/datum/reagent/consumable/corn_syrup
+	name = "Corn Syrup-玉米糖浆"
+	description = "会衰变成糖。"
+	color = "#DBCE95"
+	metabolization_rate = 3 * REAGENTS_METABOLISM
+	taste_description = "sweet slime"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/corn_syrup/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	holder.add_reagent(/datum/reagent/consumable/sugar, 0.5 * metabolization_ratio * seconds_per_tick)
+
+/datum/reagent/consumable/honey
+	name = "Honey-蜂蜜"
+	description = "甜甜的蜂蜜，会衰变成糖。具有抗菌和天然愈合特性。"
+	color = "#d3a308"
+	nutriment_factor = 15
+	taste_description = "sweetness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/honey
+
+// On the other hand, honey has been known to carry pollen with it rarely. Can be used to take in a lot of plant qualities all at once, or harm the plant.
+/datum/reagent/consumable/honey/on_hydroponics_apply(obj/machinery/hydroponics/mytray, mob/user)
+	if(!isnull(mytray.myseed) && prob(20))
+		mytray.pollinate(range = 1)
+		return
+
+	mytray.adjust_weedlevel(rand(1, 2))
+	mytray.adjust_pestlevel(rand(1, 2))
+
+/datum/reagent/consumable/honey/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	holder.add_reagent(/datum/reagent/consumable/sugar, 1.5 * metabolization_ratio * seconds_per_tick)
+	var/need_mob_update
+	if(SPT_PROB(33, seconds_per_tick))
+		var/health = -0.5 * metabolization_ratio
+		need_mob_update = affected_mob.adjust_brute_loss(health, updating_health = FALSE, required_bodytype = affected_bodytype)
+		need_mob_update += affected_mob.adjust_fire_loss(health, updating_health = FALSE, required_bodytype = affected_bodytype)
+		need_mob_update += affected_mob.adjust_oxy_loss(health, updating_health = FALSE, required_biotype = affected_biotype)
+		need_mob_update += affected_mob.adjust_tox_loss(health, updating_health = FALSE, required_biotype = affected_biotype)
+	if(need_mob_update)
+		return UPDATE_MOB_HEALTH
+
+/datum/reagent/consumable/honey/expose_mob(mob/living/exposed_mob, methods=TOUCH, reac_volume)
+	. = ..()
+	if(!(methods & (TOUCH|VAPOR|PATCH)))
+		return
+
+	exposed_mob.add_surgery_speed_mod(type, 0.6, min(reac_volume * 1 MINUTES, 5 MINUTES))
+
+/datum/reagent/consumable/mayonnaise
+	name = "Mayonnaise-蛋黄酱"
+	description = "一种由混合蛋黄制成的白色油腻混合物。"
+	color = "#DFDFDF"
+	taste_description = "mayonnaise"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/mayonnaise
+
+/datum/reagent/consumable/mold // yeah, ok, togopal, I guess you could call that a condiment
+	name = "Mold-霉菌"
+	description = "这种调味品能让任何食物打破常规。或者你的胃。"
+	color ="#708a88"
+	taste_description = "rancid fungus"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/moltobeso
+	name = "莫尔托贝索" //pardon my Italian
+	description = "浓缩的暴食。"
+	color = "#f8fc36"
+	taste_description = "gluttony"
+	taste_mult = 0.3
+	nutriment_factor = 0 //the essence of this sauce is to stimulate hunger and improve the absorption of calories from food eaten
+	metabolization_rate = 0.025 * REAGENTS_METABOLISM
+	metabolized_traits = list(TRAIT_GLUTTON)
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED | REAGENT_NO_RANDOM_RECIPE
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/moltobeso/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	for(var/datum/reagent/consumable/food in affected_mob.reagents.reagent_list)
+		if(food == src)
+			continue
+		var/food_factor = food.get_nutriment_factor(affected_mob)
+		if(food_factor <= 0)
+			continue
+		affected_mob.adjust_nutrition(20 * food_factor * metabolization_ratio * seconds_per_tick)
+
+/datum/reagent/consumable/eggrot
+	name = "Rotten Eggyolk-腐烂的蛋黄"
+	description = "闻起来简直糟透了。"
+	color ="#708a88"
+	taste_description = "rotten eggs"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/nutriment/stabilized
+	name = "Stabilized Nutriment-稳定化营养"
+	description = "一种生物工程蛋白质-营养结构，设计为在高饱和度下分解。通俗地说，它不会让你发胖。"
+	nutriment_factor = 15
+	color = "#664330" // rgb: 102, 67, 48
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/nutriment/stabilized/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(affected_mob.nutrition > NUTRITION_LEVEL_FULL - 25)
+		affected_mob.adjust_nutrition(-1.5 * metabolization_ratio * get_nutriment_factor(affected_mob) * seconds_per_tick)
+
+////Lavaland Flora Reagents////
+
+
+/datum/reagent/consumable/entpoly
+	name = "Entropic Polypnium-熵多蕨"
+	description = "一种从某种蘑菇中提取的体液，会带来糟糕的体验。"
+	color = "#1d043d"
+	taste_description = "bitter mushroom"
+	ph = 12
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/entpoly/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	var/need_mob_update
+	if(current_cycle > 10)
+		affected_mob.Unconscious(20 * metabolization_ratio * seconds_per_tick, FALSE)
+	if(SPT_PROB(10, seconds_per_tick))
+		affected_mob.losebreath += 4
+		affected_mob.adjust_organ_loss(ORGAN_SLOT_BRAIN, 1 * metabolization_ratio, 150, affected_biotype)
+		affected_mob.adjust_tox_loss(1.5 * metabolization_ratio, updating_health = FALSE, required_biotype = affected_biotype)
+		affected_mob.adjust_stamina_loss(5 * metabolization_ratio, updating_stamina = FALSE, required_biotype = affected_biotype)
+		affected_mob.set_eye_blur_if_lower(10 SECONDS)
+		need_mob_update = TRUE
+	if(need_mob_update)
+		return UPDATE_MOB_HEALTH
+
+/datum/reagent/consumable/tinlux
+	name = "Tinea Luxor-藓菇肤索"
+	description = "一种刺激性体液，能使皮肤上长出会发光的真菌。"
+	color = "#b5a213"
+	taste_description = "tingling mushroom"
+	ph = 11.2
+	self_consuming = TRUE
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED|REAGENT_DEAD_PROCESS
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/tinlux/expose_mob(mob/living/exposed_mob, methods = TOUCH, reac_volume, show_message = TRUE, touch_protection = 0)
+	. = ..()
+	if(!exposed_mob.reagents) // they won't process the reagent, but still benefit from its effects for a duration.
+		var/amount = round(reac_volume * clamp(1 - touch_protection, 0, 1))
+		var/duration = (amount / metabolization_rate) * SSmobs.wait
+		if(duration > 1 SECONDS)
+			exposed_mob.adjust_timed_status_effect(duration, /datum/status_effect/tinlux_light)
+
+/datum/reagent/consumable/tinlux/on_mob_add(mob/living/living_mob)
+	. = ..()
+	living_mob.apply_status_effect(/datum/status_effect/tinlux_light) //infinite duration
+
+/datum/reagent/consumable/tinlux/on_mob_delete(mob/living/living_mob)
+	. = ..()
+	living_mob.remove_status_effect(/datum/status_effect/tinlux_light)
+
+/datum/reagent/consumable/vitfro
+	name = "Vitrium Froth-危体睦泡沫"
+	description = "一种能治愈皮肤伤口的起泡膏体。"
+	color = "#d3a308"
+	nutriment_factor = 3
+	taste_description = "fruity mushroom"
+	ph = 10.4
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/vitfro/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	var/need_mob_update
+	if(SPT_PROB(55, seconds_per_tick))
+		need_mob_update = affected_mob.adjust_brute_loss(-0.5 * metabolization_ratio, updating_health = FALSE, required_bodytype = affected_bodytype)
+		need_mob_update += affected_mob.adjust_fire_loss(-0.5 * metabolization_ratio, updating_health = FALSE, required_bodytype = affected_bodytype)
+	if(need_mob_update)
+		return UPDATE_MOB_HEALTH
+
+/datum/reagent/consumable/liquidelectricity
+	name = "Liquid Electricity-液电"
+	description = "以太人的血液，也是维持他们生命的东西。对他们来说很棒，但对其他任何人来说都很可怕。"
+	nutriment_factor = 5
+	color = "#97ee63"
+	taste_description = "pure electricity"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/liquidelectricity/enriched
+	name = "Enriched Liquid Electricity-浓缩液电"
+
+/datum/reagent/consumable/liquidelectricity/enriched/expose_mob(mob/living/exposed_mob, methods=TOUCH, reac_volume) //can't be on life because of the way blood works.
+	. = ..()
+	if(!(methods & (INGEST|INJECT|PATCH|INHALE)) || !iscarbon(exposed_mob))
+		return
+
+	var/mob/living/carbon/exposed_carbon = exposed_mob
+	var/obj/item/organ/stomach/ethereal/stomach = exposed_carbon.get_organ_slot(ORGAN_SLOT_STOMACH)
+	if(istype(stomach))
+		stomach.adjust_charge(reac_volume * 30 * ETHEREAL_DISCHARGE_RATE)
+
+/datum/reagent/consumable/liquidelectricity/enriched/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(isethereal(affected_mob))
+		affected_mob.adjust_blood_volume(1 * seconds_per_tick)
+	// NOVA EDIT ADDITION BEGIN - Allow enriched liquid electricity to safely recharge synths
+	else if(can_fuel_synth(affected_mob))
+		return
+	// NOVA EDIT ADDITION END
+	else if(SPT_PROB(10, seconds_per_tick)) //lmao at the newbs who eat energy bars
+		affected_mob.electrocute_act(rand(5,10), "Liquid Electricity in their body", 1, SHOCK_NOGLOVES) //the shock is coming from inside the house
+		playsound(affected_mob, SFX_SPARKS, 50, TRUE, SHORT_RANGE_SOUND_EXTRARANGE)
+
+/datum/reagent/consumable/astrotame
+	name = "Astrotame-甜味剂"
+	description = "一种太空时代的人工甜味剂。"
+	nutriment_factor = 0
+	metabolization_rate = 2 * REAGENTS_METABOLISM
+	color = COLOR_WHITE // rgb: 255, 255, 255
+	taste_mult = 8
+	taste_description = "sweetness"
+	overdose_threshold = 17
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/astrotame/overdose_process(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(affected_mob.disgust < 80)
+		affected_mob.adjust_disgust(2.5 * metabolization_ratio * seconds_per_tick)
+
+/datum/reagent/consumable/secretsauce
+	name = "Secret Sauce-神秘酱汁"
+	description = "会是什么呢？"
+	nutriment_factor = 2
+	color = "#792300"
+	taste_description = "indescribable"
+	quality = FOOD_AMAZING
+	taste_mult = 100
+	ph = 6.1
+
+/datum/reagent/consumable/nutriment/peptides
+	name = "Peptides-肽"
+	color = "#BBD4D9"
+	taste_description = "mint frosting"
+	description = "这些恢复性肽不仅能加速伤口愈合，而且很有营养！"
+	nutriment_factor = 10 // 33% less than nutriment to reduce weight gain
+	brute_heal = 3
+	burn_heal = 1
+	inverse_chem = /datum/reagent/peptides_failed//should be impossible, but it's so it appears in the chemical lookup gui
+	inverse_chem_val = 0.2
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/caramel
+	name = "Caramel-焦糖"
+	description = "谁能想到加热过的糖会如此美味？"
+	nutriment_factor = 10
+	color = "#D98736"
+	taste_mult = 2
+	taste_description = "caramel"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/caramel/expose_mob(mob/living/exposed_mob, methods=TOUCH, reac_volume)
+	. = ..()
+	if(methods & INGEST)
+		exposed_mob.check_allergic_reaction(SUGAR, chance = reac_volume * 10, histamine_add = min(10, reac_volume * 2))
+
+/datum/reagent/consumable/char
+	name = "Char-烧焦物"
+	description = "烧烤的精髓。过量服用时具有奇怪的特性。"
+	nutriment_factor = 5
+	color = "#C8C8C8"
+	taste_mult = 6
+	taste_description = "smoke"
+	overdose_threshold = 45 // NOVA EDIT ORIGINAL: overdose_threshold = 15
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/char/overdose_process(mob/living/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(SPT_PROB(13, seconds_per_tick))
+		affected_mob.say(pick_list_replacements(BOOMER_FILE, "boomer"), forced = /datum/reagent/consumable/char)
+
+/datum/reagent/consumable/bbqsauce
+	name = "BBQ Sauce-烧烤酱"
+	description = "甜、烟熏、咸香，而且无处不在。非常适合烧烤。"
+	nutriment_factor = 5
+	color = "#78280A" // rgb: 120 40, 10
+	taste_mult = 2.5 //sugar's 1.5, capsacin's 1.5, so a good middle ground.
+	taste_description = "smokey sweetness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/bbqsauce
+
+/datum/reagent/consumable/chocolatepudding
+	name = "Chocolate Pudding"
+	description = "巧克力爱好者的绝佳甜点。"
+	color = COLOR_MAROON
+	quality = DRINK_VERYGOOD
+	nutriment_factor = 4
+	taste_description = "sweet chocolate"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	glass_price = DRINK_PRICE_EASY
+
+/datum/glass_style/drinking_glass/chocolatepudding
+	required_drink_type = /datum/reagent/consumable/chocolatepudding
+	name = "chocolate pudding"
+	desc = "Tasty."
+	icon = 'icons/obj/drinks/shakes.dmi'
+	icon_state = "chocolatepudding"
+
+/datum/reagent/consumable/vanillapudding
+	name = "Vanilla Pudding"
+	description = "香草爱好者的绝佳甜点。"
+	color = "#FAFAD2"
+	quality = DRINK_VERYGOOD
+	nutriment_factor = 4
+	taste_description = "sweet vanilla"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/glass_style/drinking_glass/vanillapudding
+	required_drink_type = /datum/reagent/consumable/vanillapudding
+	name = "vanilla pudding"
+	desc = "Tasty."
+	icon = 'icons/obj/drinks/shakes.dmi'
+	icon_state = "vanillapudding"
+
+/datum/reagent/consumable/laughsyrup
+	name = "Laughin' Syrup-笑液"
+	description = "由笑豆榨汁制成的产物。带气泡，味道似乎会根据搭配物而变化！"
+	color = "#803280"
+	nutriment_factor = 5
+	taste_mult = 2
+	taste_description = "fizzy sweetness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/gravy
+	name = "Gravy-肉汁"
+	description = "由面粉、水和熟肉汁混合而成。"
+	taste_description = "gravy"
+	color = "#623301"
+	taste_mult = 1.2
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/pancakebatter
+	name = "Pancake Batter-松饼糊"
+	description = "一种非常奶香的面糊。在煎锅上放5单位就能做出美味的煎饼。"
+	taste_description = "milky batter"
+	color = "#fccc98"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/korta_flour
+	name = "Korta Flour-科尔塔面粉"
+	description = "一种由科塔坚果壳制成的粗磨、带胡椒味的面粉。"
+	taste_description = "earthy heat"
+	color = "#EEC39A"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/korta_milk
+	name = "Korta Milk-科尔塔奶"
+	description = "一种通过压碎科塔坚果中心制成的乳状液体。"
+	taste_description = "sugary milk"
+	color = COLOR_WHITE
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/korta_nectar
+	name = "Korta Nectar-科尔塔蜜"
+	description = "一种由压碎的甜科塔坚果制成的甜美糖浆。"
+	color = "#d3a308"
+	nutriment_factor = 5
+	taste_description = "peppery sweetness"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/whipped_cream
+	name = "Whipped Cream-生奶油"
+	description = "一种通过高速搅打奶油制成的白色蓬松奶油。"
+	color = "#efeff0"
+	nutriment_factor = 4
+	taste_description = "fluffy sweet cream"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/peanut_butter
+	name = "Peanut Butter-花生酱"
+	description = "一种通过研磨花生制成的浓郁、柔滑的涂抹酱。"
+	taste_description = "peanuts"
+	color = "#D9A066"
+	nutriment_factor = 15
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/peanut_butter
+
+/datum/reagent/consumable/peanut_butter/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio) //ET loves peanut butter
+	. = ..()
+	if(isabductor(affected_mob))
+		affected_mob.add_mood_event("ET_pieces", /datum/mood_event/et_pieces, name)
+		affected_mob.set_drugginess(15 SECONDS * metabolization_ratio * seconds_per_tick)
+
+/datum/reagent/consumable/vinegar
+	name = "Vinegar-醋"
+	description = "可用于腌制，或淋在薯条上。"
+	taste_description = "acid"
+	color = "#661F1E"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/vinegar
+
+/datum/reagent/consumable/cornmeal
+	name = "Cornmeal-玉米面"
+	description = "磨碎的玉米粉，用于制作与玉米相关的食物。"
+	taste_description = "raw cornmeal"
+	color = "#ebca85"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/cornmeal
+
+/datum/reagent/consumable/yoghurt
+	name = "Yoghurt-酸奶"
+	description = "奶油般的天然酸奶，可用于制作食物和饮品。"
+	taste_description = "yoghurt"
+	color = "#efeff0"
+	nutriment_factor = 2
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/yoghurt
+
+/datum/reagent/consumable/cornmeal_batter
+	name = "Cornmeal Batter-玉米糊"
+	description = "一种蛋、奶、玉米的混合物，生吃味道不佳。"
+	taste_description = "raw batter"
+	color = "#ebca85"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/olivepaste
+	name = "Olive Paste-橄榄酱"
+	description = "一堆精细研磨的橄榄泥。"
+	taste_description = "mushy olives"
+	color = "#adcf77"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/creamer
+	name = "Coffee Creamer-咖啡伴侣"
+	description = "廉价咖啡用的奶粉。多么令人愉悦。"
+	taste_description = "milk"
+	color = "#efeff0"
+	nutriment_factor = 1.5
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/creamer
+
+/datum/reagent/consumable/mintextract
+	name = "薄荷精"
+	description = "对付不受欢迎的顾客很有用。"
+	color = "#CF3600" // rgb: 207, 54, 0
+	taste_description = "mint"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/mintextract/on_mob_life(mob/living/carbon/affected_mob, seconds_per_tick, metabolization_ratio)
+	. = ..()
+	if(HAS_TRAIT(affected_mob, TRAIT_FAT))
+		affected_mob.investigate_log("has been gibbed by consuming [src] while fat.", INVESTIGATE_DEATHS)
+		affected_mob.inflate_gib()
+
+/datum/reagent/consumable/worcestershire
+	name = "伍斯特沙司"
+	description = "顺便说一下，那是\"伍斯特郡\"酱汁。"
+	nutriment_factor = 2 * REAGENTS_METABOLISM
+	color = "#572b26"
+	taste_description = "sweet fish"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/worcestershire
+
+/datum/reagent/consumable/red_bay
+	name = "红湾调味料"
+	description = "一种秘密的香草和香料混合物，据火星人说，与任何食物都很搭配。"
+	color = "#8E4C00"
+	taste_description = "spice"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/red_bay
+
+/datum/reagent/consumable/curry_powder
+	name = "咖喱粉"
+	description = "人类最常用的香料之一。通常用于制作咖喱。"
+	color = "#F6C800"
+	taste_description = "dry curry"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/curry_powder
+
+/datum/reagent/consumable/dashi_concentrate
+	name = "出汁浓缩液"
+	description = "一种浓缩的高汤。与水以1:8的比例炖煮，即可制成美味的高汤。"
+	color = "#372926"
+	taste_description = "extreme umami"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+	default_container = /obj/item/reagent_containers/condiment/dashi_concentrate
+
+/datum/reagent/consumable/martian_batter
+	name = "火星面糊"
+	description = "一种用高汤和面粉制成的浓稠面糊，用于制作如大阪烧和章鱼烧等菜肴。"
+	color = "#D49D26"
+	taste_description = "umami dough"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS
+
+/datum/reagent/consumable/grounding_solution
+	name = "接地溶液"
+	description = "一种食品安全的离子溶液，旨在中和来自斯普劳特的食物中常见的、神秘的\"液态电\"，接触后会形成无害的盐。"
+	color = "#efeff0"
+	taste_description = "metallic salt"
+	chemical_flags = REAGENT_CAN_BE_SYNTHESIZED
+	randomized_spawns = REAGENT_SPAWN_ALL_RANDOM_SPAWNS

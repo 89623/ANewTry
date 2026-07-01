@@ -1,0 +1,16 @@
+directory = "_maps/RandomRuins/SpaceRuins/nova/port_tarkon/"
+
+[rooms.xeno]
+modules = ["xeno_safe.dmm", "xeno_dead.dmm", "xeno_nest.dmm"]
+
+[rooms.cargo]
+modules = ["cargo_stock.dmm", "cargo_warehouse.dmm", "cargo_secure.dmm"]
+
+[rooms.dorm]
+modules = ["dorm_classic.dmm", "dorm_cabin.dmm", "dorm_party.dmm"]
+
+[rooms.maint]
+modules = ["maint_classic.dmm", "maint_jungle.dmm", "maint_hydro.dmm", "maint_ice.dmm"]
+
+[rooms.solars]
+modules = ["solars_classic.dmm", "solars_construct.dmm", "solars_carps.dmm", "solars_meteor.dmm"]

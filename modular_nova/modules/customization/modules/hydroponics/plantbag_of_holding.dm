@@ -1,0 +1,87 @@
+//
+// Plantbag of Holding - 4x capacity but needs a bluespace core. Or a similar analogue.
+//
+/obj/item/storage/bag/plants/bluespace
+	name = "植物次元袋"
+	desc = "一个能容纳大量植物样本的植物袋。"
+	storage_type = /datum/storage/bag/plants/bluespace
+	icon = 'modular_nova/master_files/icons/obj/storage/plantbag_of_holding.dmi'
+	icon_state = "plantbag_of_holding"
+	worn_icon_state = "plantbag"
+	custom_materials = list(/datum/material/iron = SMALL_MATERIAL_AMOUNT * 1.5, /datum/material/glass = SMALL_MATERIAL_AMOUNT * 1.5)
+
+//4x the size of a normal plant bag. this probably won't break things. probably.
+
+/obj/item/storage/bag/plants/bluespace/setup_reskins()
+	return
+
+/datum/storage/bag/plants/bluespace
+	max_total_storage = 400
+	max_slots = 400
+
+//Botany can make their own bluespace cores! Sort of.
+/obj/item/botany_bluespace_core
+	name = "植物蓝空核心"
+	desc = "植物学版本的蓝空核心。有大量的蓝空能量可供使用！我们就忽略它其实只是一堆蓝空香蕉缠在一个番茄上，中间穿了几根电线这个事实吧。"
+	icon = 'modular_nova/master_files/icons/obj/storage/plantbag_of_holding.dmi'
+	icon_state = "botanical_core"
+	custom_materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 0.15, /datum/material/glass = SHEET_MATERIAL_AMOUNT * 0.15)
+
+/obj/item/plantbag_of_holding_inert
+	name = "惰性植物次元袋"
+	desc = "一个准备接收蓝空核心的惰性容器。这个容器被调谐为用于存放植物。"
+	icon = 'modular_nova/master_files/icons/obj/storage/plantbag_of_holding.dmi'
+	icon_state = "plantbag_of_holding_inert"
+	w_class = WEIGHT_CLASS_BULKY
+	item_flags = NO_MAT_REDEMPTION
+
+/obj/item/plantbag_of_holding_inert/examine_more(mob/user)
+	. = ..()
+	. += span_smallnoticeital("<i>Surely you don't have to bother science with this, right..?</i>\n")
+
+//So while we CAN use a real refined bluespace core, we can also use a goofy botany-only "bluespace core" as well
+/datum/crafting_recipe/botany_bluespace_core
+	name = "植物蓝空核心"
+	result = /obj/item/botany_bluespace_core
+	reqs = list(
+		/obj/item/food/grown/banana/bluespace = 6,
+		/obj/item/food/grown/tomato/blue/bluespace = 1,
+		/obj/item/stack/cable_coil = 15,
+	)
+	time = 5 SECONDS
+	category = CAT_MISC
+
+/datum/crafting_recipe/plantbag_of_holding_botanycore
+	name = "植物次元袋"
+	result = /obj/item/storage/bag/plants/bluespace
+	reqs = list(
+		/obj/item/plantbag_of_holding_inert = 1,
+		/obj/item/botany_bluespace_core = 1,
+	)
+	tool_behaviors = list(TOOL_SHOVEL)
+	time = 5 SECONDS
+	category = CAT_CONTAINERS
+
+/datum/crafting_recipe/plantbag_of_holding_realcore
+	name = "植物次元袋"
+	result = /obj/item/storage/bag/plants/bluespace
+	reqs = list(
+		/obj/item/plantbag_of_holding_inert = 1,
+		/obj/item/assembly/signaler/anomaly/bluespace = 1,
+	)
+	tool_behaviors = list(TOOL_SHOVEL)
+	time = 5 SECONDS
+	category = CAT_CONTAINERS
+	crafting_flags = parent_type::crafting_flags | CRAFT_SKIP_MATERIALS_PARITY
+
+/datum/design/plantbag_of_holding
+	name = "植物次元袋"
+	id = "plantbag_holding"
+	build_type = PROTOLATHE | AWAY_LATHE
+	materials = list(/datum/material/iron = SMALL_MATERIAL_AMOUNT*5, /datum/material/glass = HALF_SHEET_MATERIAL_AMOUNT, /datum/material/bluespace = HALF_SHEET_MATERIAL_AMOUNT)
+	build_path = /obj/item/plantbag_of_holding_inert
+	category = list(
+		RND_CATEGORY_TOOLS + RND_SUBCATEGORY_TOOLS_BOTANY_ADVANCED
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_SERVICE
+

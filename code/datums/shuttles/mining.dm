@@ -1,0 +1,70 @@
+// LABOUR SHUTTLES
+/datum/map_template/shuttle/labour
+	port_id = "labour"
+	who_can_purchase = null
+
+/datum/map_template/shuttle/labour/box
+	suffix = "box"
+	name = "劳工穿梭机（箱式）"
+
+/datum/map_template/shuttle/labour/generic
+	suffix = "generic"
+	name = "劳工穿梭机（通用）"
+
+/datum/map_template/shuttle/labour/delta
+	suffix = "delta"
+	name = "劳工穿梭机（德尔塔）"
+
+/datum/map_template/shuttle/labour/kilo
+	suffix = "kilo"
+	name = "劳工穿梭机（千吨）"
+
+/datum/map_template/shuttle/labour/nebula
+	suffix = "nebula"
+	name = "劳工穿梭机（星云）"
+
+// MINING SHUTTLES
+/datum/map_template/shuttle/mining
+	port_id = "mining"
+	who_can_purchase = null
+
+/datum/map_template/shuttle/mining/box
+	suffix = "box"
+	name = "采矿穿梭机（箱式）"
+
+/datum/map_template/shuttle/mining/delta
+	suffix = "delta"
+	name = "采矿穿梭机（德尔塔）"
+
+/datum/map_template/shuttle/mining/kilo
+	suffix = "kilo"
+	name = "采矿穿梭机（千吨）"
+
+/datum/map_template/shuttle/mining/large
+	suffix = "large"
+	name = "采矿穿梭机（大型）"
+
+/datum/map_template/shuttle/mining/northstar
+	suffix = "northstar"
+	name = "采矿穿梭机（北极星）"
+
+/datum/map_template/shuttle/mining/nebula
+	suffix = "nebula"
+	name = "采矿穿梭机（星云）"
+
+// MINING COMMON SHUTTLES
+/datum/map_template/shuttle/mining_common
+	port_id = "mining_common"
+	who_can_purchase = null
+
+/datum/map_template/shuttle/mining_common/meta
+	suffix = "meta"
+	name = "熔岩地穿梭机（Meta）"
+
+/datum/map_template/shuttle/mining_common/kilo
+	suffix = "kilo"
+	name = "熔岩地穿梭机（Kilo）"
+
+/datum/map_template/shuttle/mining_common/northstar
+	suffix = "northstar"
+	name = "熔岩地穿梭机（北极星）"

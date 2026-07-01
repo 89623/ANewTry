@@ -1,0 +1,50 @@
+/obj/item/camera/siliconcam/pai_camera
+	name = "pAI智能摄影相机"
+	light_color = COLOR_PAI_GREEN
+
+/obj/item/camera/siliconcam/pai_camera/after_picture(mob/user, datum/picture/picture)
+	var/number = length(stored)
+	picture.picture_name = "Image [number] (taken by [loc.name])"
+	stored[picture] = TRUE
+	playsound(src, SFX_POLAROID, 75, TRUE, -3)
+	balloon_alert(user, "图像已记录")
+
+/**
+ * Handles selecting and printing stored images.
+ *
+ * @param {mob} user - The pAI.
+ *
+ * @returns {boolean} - TRUE if the pAI prints an image,
+ * 	FALSE otherwise.
+*/
+/obj/item/camera/siliconcam/pai_camera/proc/pai_print(mob/user)
+	var/mob/living/silicon/pai/pai = loc
+	var/datum/picture/selection = selectpicture(user)
+	if(!istype(selection))
+		balloon_alert(user, "图像无效")
+		return FALSE
+	printpicture(user, selection)
+	user.visible_message(span_notice("一张照片出现在[pai.name]的底盘上！"), span_notice("你打印了一张照片。"))
+	return TRUE
+
+/**
+ * All inclusive camera proc. Zooms, snaps, prints.
+ *
+ * @param {mob} user - The pAI requesting the camera.
+ *
+ * @param {string} mode - The camera option to toggle.
+ *
+ * @returns {boolean} - TRUE if the camera worked.
+ */
+/mob/living/silicon/pai/proc/use_camera(mob/user, mode)
+	if(!aicamera || isnull(mode))
+		return FALSE
+	switch(mode)
+		if(PAI_PHOTO_MODE_CAMERA)
+			aicamera.toggle_camera_mode(user)
+		if(PAI_PHOTO_MODE_PRINTER)
+			var/obj/item/camera/siliconcam/pai_camera/paicam = aicamera
+			paicam.pai_print(user)
+		if(PAI_PHOTO_MODE_ZOOM)
+			aicamera.adjust_zoom(user)
+	return TRUE

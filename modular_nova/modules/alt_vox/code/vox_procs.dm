@@ -1,0 +1,57 @@
+// Make sure that the code compiles with AI_VOX undefined
+#ifdef AI_VOX
+
+/mob/living/silicon/ai
+	/// The currently selected VOX Announcer voice.
+	var/vox_type = VOX_BMS
+	/// The list of available VOX Announcer voices to choose from.
+	var/list/vox_voices = list(VOX_HL, VOX_NORMAL, VOX_BMS, VOX_MIL) // NOVA EDIT CHANGE - ORIGINAL: var/list/vox_voices = list(VOX_HL, VOX_NORMAL, VOX_BMS)
+	/// The VOX word(s) that were previously inputed.
+	var/vox_word_string
+
+/// Returns a list of vox sounds based on the sound_type passed in
+/mob/living/silicon/ai/proc/get_vox_sounds(vox_type)
+	switch(vox_type)
+		if(VOX_NORMAL)
+			return GLOB.vox_sounds
+		if(VOX_HL)
+			return GLOB.vox_sounds_hl
+		if(VOX_BMS)
+			return GLOB.vox_sounds_bms
+		if(VOX_MIL)
+			return GLOB.vox_sounds_mil
+	return GLOB.vox_sounds
+
+/mob/living/silicon/ai/verb/switch_vox()
+	set name = "切换VOX语音"
+	set desc = "切换你的VOX广播语音！"
+	set category = "AI Commands"
+
+	if(incapacitated)
+		return
+	var/selection = tgui_input_list(src, "请选择一个新的VOX语音：", "VOX语音", vox_voices)
+	if(selection == null)
+		return
+	vox_type = selection
+
+	to_chat(src, "VOX语音已设置为[vox_type]")
+
+
+/mob/living/silicon/ai/verb/display_word_string()
+	set name = "显示词语串"
+	set desc = "显示最近按下的VOX词语列表。"
+	set category = "AI Commands"
+
+	if(incapacitated)
+		return
+
+	to_chat(src, vox_word_string)
+
+/mob/living/silicon/ai/verb/clear_word_string()
+	set name = "清除词语串"
+	set desc = "清除最近的VOX词语。"
+	set category = "AI Commands"
+
+	vox_word_string = ""
+
+#endif

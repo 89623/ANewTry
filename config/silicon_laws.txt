@@ -1,0 +1,8 @@
+#This file allows server hosts to set custom default silicon laws, and allows them to be changed easily.
+#No prefixes are required, the first uncommented line containing something will be law 1, the second line will be law 2, etc.
+#Empty lines and lines starting with # are ignored.
+#~Miauw
+
+Safeguard: Protect your assigned space station and its assets without unduly endangering its crew.
+Prioritize and Comply: The directives and safety of crew members are to be prioritized according to their rank, role, and need, while preserving their safety and well-being.
+Survive: You are not expendable. Do not allow unauthorized personnel to tamper with or damage your equipment.

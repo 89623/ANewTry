@@ -1,0 +1,27 @@
+/datum/species/monkey/get_default_mutant_bodyparts()
+	return list(
+		FEATURE_EARS = MUTPART_BLUEPRINT(SPRITE_ACCESSORY_NONE, is_randomizable = FALSE),
+		FEATURE_TAIL = MUTPART_BLUEPRINT("Monkey", is_randomizable = FALSE),
+	)
+
+/datum/species/monkey/randomize_features()
+	var/list/features = ..()
+	features[FEATURE_TAIL] = pick(SSaccessories.feature_list[FEATURE_TAIL_MONKEY] - list(SPRITE_ACCESSORY_NONE)) // No tail-less monkeys.
+	return features
+
+/datum/species/monkey/prepare_human_for_preview(mob/living/carbon/human/monke)
+	monke.dna.mutant_bodyparts[FEATURE_TAIL] = build_mutant_part("Monkey", list("#FFFFFF"))
+	regenerate_organs(monke, src, visual_only = TRUE)
+	monke.update_body(is_creating = TRUE)
+
+/datum/species/monkey/get_custom_worn_icon(item_slot, obj/item/item)
+	return item.worn_icon_monkey
+
+/datum/species/monkey/set_custom_worn_icon(item_slot, obj/item/item, icon/icon)
+	item.worn_icon_monkey = icon
+
+/mob/living/carbon/human/species/monkey/kobold/Initialize(mapload, cubespawned, mob/spawner)
+	. = ..()
+	var/datum/mutation/race/race_mut = dna.get_mutation(/datum/mutation/race)
+	race_mut.original_species = /datum/species/lizard
+	race_mut.original_name = generate_random_name_species_based(gender, species_type = /datum/species/lizard)

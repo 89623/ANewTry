@@ -1,0 +1,85 @@
+/mob/verb/pray(message as text)
+	set name = VERB_PRAY
+
+	if(GLOB.say_disabled) //This is here to try to identify lag problems
+		to_chat(src, span_danger("发言当前已被管理员禁用。"), confidential = TRUE)
+		return
+
+	message = copytext_char(sanitize(message), 1, MAX_MESSAGE_LEN)
+	if(!message)
+		return
+	log_prayer("[src.key]/([src.name]): [message]")
+	if(src.client)
+		if(src.client.prefs.muted & MUTE_PRAY)
+			to_chat(src, span_danger("你无法祈祷（已被禁言）。"), confidential = TRUE)
+			return
+		if(src.client.handle_spam_prevention(message, MUTE_PRAY))
+			return
+
+	var/mutable_appearance/cross = mutable_appearance('icons/obj/storage/book.dmi', "bible")
+	var/font_color = "purple"
+	var/prayer_type = "PRAYER"
+	var/deity
+	if(src.job == JOB_CHAPLAIN)
+		cross.icon_state = "kingyellow"
+		font_color = "blue"
+		prayer_type = "CHAPLAIN PRAYER"
+		if(GLOB.deity)
+			deity = GLOB.deity
+	else if(IS_CULTIST(src))
+		cross.icon_state = "tome"
+		font_color = "red"
+		prayer_type = "CULTIST PRAYER"
+		deity = "Nar'Sie"
+	else if(isliving(src))
+		var/mob/living/L = src
+		if(HAS_TRAIT(L, TRAIT_SPIRITUAL))
+			cross.icon_state = "holylight"
+			font_color = "blue"
+			prayer_type = "SPIRITUAL PRAYER"
+
+	var/msg_tmp = message
+	GLOB.requests.pray(src.client, message, src.job == JOB_CHAPLAIN)
+	message = span_adminnotice("[icon2html(cross, GLOB.admins)]<b><font color=[font_color]>[prayer_type][deity ? " (to [deity])" : ""]: </font>[ADMIN_FULLMONTY(src)] [ADMIN_SC(src)]:</b> [span_linkify(message)]")
+	for(var/client/C in GLOB.admins)
+		if(get_chat_toggles(C) & CHAT_PRAYER)
+			to_chat(C, message, type = MESSAGE_TYPE_PRAYER, confidential = TRUE)
+	to_chat(src, span_info("你向众神祈祷：\"[msg_tmp]\""), confidential = TRUE)
+
+	BLACKBOX_LOG_ADMIN_VERB("Prayer")
+
+
+/// Used by communications consoles to message CentCom
+/proc/message_centcom(text, mob/sender)
+	var/msg = copytext_char(sanitize(text), 1, MAX_MESSAGE_LEN)
+	GLOB.requests.message_centcom(sender.client, msg)
+	msg = span_adminnotice("<b><font color=orange>中央指挥部：</font>[ADMIN_FULLMONTY(sender)] [ADMIN_CENTCOM_REPLY(sender)]:</b> [msg]")
+	for(var/client/staff as anything in GLOB.admins)
+		if(staff?.prefs.read_preference(/datum/preference/toggle/comms_notification))
+			SEND_SOUND(staff, sound('sound/misc/server-ready.ogg'))
+	to_chat(GLOB.admins, msg, type = MESSAGE_TYPE_PRAYER, confidential = TRUE)
+	for(var/obj/machinery/computer/communications/console in GLOB.shuttle_caller_list)
+		console.override_cooldown()
+
+/// Used by communications consoles to message the Syndicate
+/proc/message_syndicate(text, mob/sender)
+	var/msg = copytext_char(sanitize(text), 1, MAX_MESSAGE_LEN)
+	GLOB.requests.message_syndicate(sender.client, msg)
+	msg = span_adminnotice("<b><font color=crimson>辛迪加：</font>[ADMIN_FULLMONTY(sender)] [ADMIN_SYNDICATE_REPLY(sender)]:</b> [msg]")
+	for(var/client/staff as anything in GLOB.admins)
+		if(staff?.prefs.read_preference(/datum/preference/toggle/comms_notification))
+			SEND_SOUND(staff, sound('sound/misc/server-ready.ogg'))
+	to_chat(GLOB.admins, msg, type = MESSAGE_TYPE_PRAYER, confidential = TRUE)
+	for(var/obj/machinery/computer/communications/console in GLOB.shuttle_caller_list)
+		console.override_cooldown()
+
+/// Used by communications consoles to request the nuclear launch codes
+/proc/nuke_request(text, mob/sender)
+	var/msg = copytext_char(sanitize(text), 1, MAX_MESSAGE_LEN)
+	GLOB.requests.nuke_request(sender.client, msg)
+	msg = span_adminnotice("<b><font color=orange>核弹密码请求：</font>[ADMIN_FULLMONTY(sender)] [ADMIN_CENTCOM_REPLY(sender)] [ADMIN_SET_SD_CODE]:</b> [msg]")
+	for(var/client/staff as anything in GLOB.admins)
+		SEND_SOUND(staff, sound('sound/misc/server-ready.ogg'))
+	to_chat(GLOB.admins, msg, type = MESSAGE_TYPE_PRAYER, confidential = TRUE)
+	for(var/obj/machinery/computer/communications/console in GLOB.shuttle_caller_list)
+		console.override_cooldown()

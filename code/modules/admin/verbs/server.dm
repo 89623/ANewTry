@@ -1,0 +1,260 @@
+// Server Tab - Server Verbs
+
+ADMIN_VERB(toggle_random_events, R_SERVER, "Toggle Random Events", "Toggles random events on or off.", ADMIN_CATEGORY_SERVER)
+	var/new_are = !CONFIG_GET(flag/allow_random_events)
+	CONFIG_SET(flag/allow_random_events, new_are)
+	message_admins("[key_name_admin(user)] has [new_are ? "enabled" : "disabled"] random events.")
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggle Random Events", "[new_are ? "Enabled" : "Disabled"]")) // If you are copy-pasting this, ensure the 4th parameter is unique to the new proc!
+
+ADMIN_VERB(toggle_hub, R_SERVER, "Toggle Hub", "Toggles the server's visilibility on the BYOND Hub.", ADMIN_CATEGORY_SERVER)
+	world.update_hub_visibility(!GLOB.hub_visibility)
+
+	log_admin("[key_name(user)] has toggled the server's hub status for the round, it is now [(GLOB.hub_visibility?"on":"off")] the hub.")
+	message_admins("[key_name_admin(user)] has toggled the server's hub status for the round, it is now [(GLOB.hub_visibility?"on":"off")] the hub.")
+	if (GLOB.hub_visibility && !world.reachable)
+		message_admins("WARNING: The server will not show up on the hub because byond is detecting that a filewall is blocking incoming connections.")
+
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggled Hub Visibility", "[GLOB.hub_visibility ? "Enabled" : "Disabled"]")) // If you are copy-pasting this, ensure the 4th parameter is unique to the new proc!
+
+#define REGULAR_RESTART "Regular Restart"
+#define REGULAR_RESTART_DELAYED "Regular Restart (with delay)"
+#define NO_EVENT_RESTART "Restart, Skip TGS Event"
+#define HARD_RESTART "Hard Restart (No Delay/Feedback Reason)"
+#define HARDEST_RESTART "Hardest Restart (No actions, just reboot)"
+#define TGS_RESTART "Server Restart (Kill and restart DD)"
+ADMIN_VERB(restart, R_SERVER, "Reboot World", "Restarts the world immediately.", ADMIN_CATEGORY_SERVER)
+	var/list/options = list(REGULAR_RESTART, REGULAR_RESTART_DELAYED, HARD_RESTART)
+
+	// this option runs a codepath that can leak db connections because it skips subsystem (specifically SSdbcore) shutdown
+	if(!SSdbcore.IsConnected())
+		options += HARDEST_RESTART
+
+	if(world.TgsAvailable())
+		options.Insert(3, NO_EVENT_RESTART)
+		options += TGS_RESTART;
+
+	if(SSticker.admin_delay_notice)
+		if(alert(user, "你确定吗？管理员已经因以下原因延迟了回合结束：[SSticker.admin_delay_notice]", "确认", "Yes", "No") != "Yes")
+			return FALSE
+
+	var/result = input(user, "选择重启方式", "世界重启", options[1]) as null|anything in options
+	if(isnull(result))
+		return
+
+	BLACKBOX_LOG_ADMIN_VERB("Reboot World")
+	var/init_by = "Initiated by [user.holder.fakekey ? "Admin" : user.key]."
+	switch(result)
+		if(REGULAR_RESTART, REGULAR_RESTART_DELAYED, NO_EVENT_RESTART)
+			var/delay = 1
+			if(result == REGULAR_RESTART_DELAYED)
+				delay = input("重启应延迟多少秒？", "重启延迟", 5) as num|null
+			if(!delay)
+				return FALSE
+			if(!user.is_localhost())
+				if(alert(user,"你确定要重启服务器吗？","此服务器正在运行", "Restart", "Cancel") != "Restart")
+					return FALSE
+
+			if (result != NO_EVENT_RESTART)
+				SSticker.TriggerRoundEndTgsEvent()
+
+			SSticker.Reboot(init_by, "admin reboot - by [user.key] [user.holder.fakekey ? "(stealth)" : ""]", delay * 10)
+		if(HARD_RESTART)
+			to_chat(world, "世界重启 - [init_by]")
+			world.Reboot()
+		if(HARDEST_RESTART)
+			to_chat(world, "硬世界重启 - [init_by]")
+			world.Reboot(fast_track = TRUE)
+		if(TGS_RESTART)
+			to_chat(world, "服务器重启 - [init_by]")
+			world.TgsEndProcess()
+
+#undef REGULAR_RESTART
+#undef REGULAR_RESTART_DELAYED
+#undef NO_EVENT_RESTART
+#undef HARD_RESTART
+#undef HARDEST_RESTART
+#undef TGS_RESTART
+
+ADMIN_VERB(cancel_reboot, R_SERVER, "Cancel Reboot", "Cancels a pending world reboot.", ADMIN_CATEGORY_SERVER)
+	if(!SSticker.cancel_reboot(user))
+		return
+	log_admin("[key_name(user)] cancelled the pending world reboot.")
+	message_admins("[key_name_admin(user)] cancelled the pending world reboot.")
+
+ADMIN_VERB(end_round, R_SERVER, "End Round", "Forcibly ends the round and allows the server to restart normally.", ADMIN_CATEGORY_SERVER)
+	var/confirm = tgui_alert(user, "结束本轮并重启游戏世界？", "End Round-结束回合", list("Yes", "Cancel"))
+	if(confirm != "Yes")
+		return
+	SSticker.force_ending = FORCE_END_ROUND
+	BLACKBOX_LOG_ADMIN_VERB("End Round")
+
+ADMIN_VERB(toggle_ooc, R_ADMIN, "Toggle OOC", "Toggle the OOC channel on or off.", ADMIN_CATEGORY_SERVER)
+	toggle_ooc()
+	log_admin("[key_name(user)] toggled OOC.")
+	message_admins("[key_name_admin(user)] toggled OOC.")
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggle OOC", "[GLOB.ooc_allowed ? "Enabled" : "Disabled"]"))
+
+ADMIN_VERB(toggle_ooc_dead, R_ADMIN, "Toggle Dead OOC", "Toggle the OOC channel for dead players on or off.", ADMIN_CATEGORY_SERVER)
+	toggle_dooc()
+	log_admin("[key_name(user)] toggled OOC.")
+	message_admins("[key_name_admin(user)] toggled Dead OOC.")
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggle Dead OOC", "[GLOB.dooc_allowed ? "Enabled" : "Disabled"]"))
+
+ADMIN_VERB(toggle_vote_dead, R_ADMIN, "Toggle Dead Vote", "Toggle the vote for dead players on or off.", ADMIN_CATEGORY_SERVER)
+	SSvote.toggle_dead_voting(user)
+
+ADMIN_VERB(start_now, R_SERVER, "Start Now", "Start the round RIGHT NOW.", ADMIN_CATEGORY_SERVER)
+	var/static/list/waiting_states = list(GAME_STATE_PREGAME, GAME_STATE_STARTUP)
+	if(!(SSticker.current_state in waiting_states))
+		to_chat(user, span_warning(span_red("游戏已经开始！")))
+		return
+
+	if(SSticker.start_immediately)
+		SSticker.start_immediately = FALSE
+		SSticker.SetTimeLeft(3 MINUTES)
+		to_chat(world, span_big(span_notice("游戏将在3分钟后开始。")))
+		SEND_SOUND(world, sound('sound/announcer/default/attention.ogg'))
+		message_admins(span_adminnotice("[key_name_admin(user)] 取消了立即开始游戏。游戏将在3分钟后开始。"))
+		log_admin("[key_name(user)] has cancelled immediate game start.")
+		return
+
+	if(!user.is_localhost())
+		var/response = tgui_alert(user, "你确定要开始本轮游戏吗？", "Start Now-立即开始", list("Start Now", "Cancel"))
+		if(response != "Start Now")
+			return
+	SSticker.start_immediately = TRUE
+
+	log_admin("[key_name(user)] has started the game.")
+	message_admins("[key_name_admin(user)] has started the game.")
+	if(SSticker.current_state == GAME_STATE_STARTUP)
+		message_admins("The server is still setting up, but the round will be started as soon as possible.")
+	BLACKBOX_LOG_ADMIN_VERB("Start Now")
+
+ADMIN_VERB(delay_round_end, R_ADMIN, "Delay Round End", "Prevent the server from restarting.", ADMIN_CATEGORY_SERVER) // NOVA EDIT CHANGE - Admins can delay the round end - ORIGINAL: ADMIN_VERB(delay_round_end, R_SERVER, "Delay Round End", "Prevent the server from restarting.", ADMIN_CATEGORY_SERVER)
+	if(SSticker.delay_end)
+		tgui_alert(user, "本轮结束已被延迟。当前延迟的原因是：\"[SSticker.admin_delay_notice]\"", "提示", list("Ok"))
+		return
+
+	var/delay_reason = input(user, "输入延迟本轮结束的原因", "本轮延迟原因") as null|text
+
+	if(isnull(delay_reason))
+		return
+
+	if(SSticker.delay_end)
+		tgui_alert(user, "本轮结束已被延迟。当前延迟的原因是：\"[SSticker.admin_delay_notice]\"", "警报", list("Ok"))
+		return
+
+	SSticker.delay_end = TRUE
+	SSticker.admin_delay_notice = delay_reason
+	if(SSticker.reboot_timer)
+		SSticker.cancel_reboot(user)
+
+	log_admin("[key_name(user)] delayed the round end for reason: [SSticker.admin_delay_notice]")
+	message_admins("[key_name_admin(user)] delayed the round end for reason: [SSticker.admin_delay_notice]")
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Delay Round End", "Reason: [delay_reason]")) // If you are copy-pasting this, ensure the 4th parameter is unique to the new proc!
+
+ADMIN_VERB(toggle_enter, R_SERVER, "Toggle Entering", "Toggle the ability to enter the game.", ADMIN_CATEGORY_SERVER)
+	if(!SSlag_switch.initialized)
+		return
+	SSlag_switch.set_measure(DISABLE_NON_OBSJOBS, !SSlag_switch.measures[DISABLE_NON_OBSJOBS])
+	log_admin("[key_name(user)] toggled new player game entering. Lag Switch at index ([DISABLE_NON_OBSJOBS])")
+	message_admins("[key_name_admin(user)] toggled new player game entering [SSlag_switch.measures[DISABLE_NON_OBSJOBS] ? "OFF" : "ON"].")
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggle Entering", "[!SSlag_switch.measures[DISABLE_NON_OBSJOBS] ? "Enabled" : "Disabled"]")) // If you are copy-pasting this, ensure the 4th parameter is unique to the new proc!
+
+ADMIN_VERB(toggle_ai, R_SERVER, "Toggle AI", "Toggle the ability to choose AI jobs.", ADMIN_CATEGORY_SERVER)
+	var/alai = CONFIG_GET(flag/allow_ai)
+	CONFIG_SET(flag/allow_ai, !alai)
+	if (alai)
+		to_chat(world, span_bold("AI职位不再可选。"), confidential = TRUE)
+	else
+		to_chat(world, "<B>AI职位现在可以选择了。</B>", confidential = TRUE)
+	log_admin("[key_name(user)] toggled AI allowed.")
+	world.update_status()
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggle AI", "[!alai ? "Disabled" : "Enabled"]")) // If you are copy-pasting this, ensure the 4th parameter is unique to the new proc!
+
+ADMIN_VERB(toggle_respawn, R_SERVER, "Toggle Respawn", "Toggle the ability to respawn.", ADMIN_CATEGORY_SERVER)
+	var/respawn_state = CONFIG_GET(flag/allow_respawn)
+	var/new_state = -1
+	var/new_state_text = ""
+	switch(respawn_state)
+		if(RESPAWN_FLAG_DISABLED) // respawn currently disabled
+			new_state = RESPAWN_FLAG_FREE
+			new_state_text = "Enabled"
+			to_chat(world, span_bold("你现在可以重生。"), confidential = TRUE)
+
+		if(RESPAWN_FLAG_FREE) // respawn currently enabled
+			new_state = RESPAWN_FLAG_NEW_CHARACTER
+			new_state_text = "Enabled, Different Slot"
+			to_chat(world, span_bold("你现在可以以不同角色重生。"), confidential = TRUE)
+
+		if(RESPAWN_FLAG_NEW_CHARACTER) // respawn currently enabled for different slot characters only
+			new_state = RESPAWN_FLAG_DISABLED
+			new_state_text = "Disabled"
+			to_chat(world, span_bold("你不能再重生了。"), confidential = TRUE)
+
+		else
+			WARNING("Invalid respawn state in config: [respawn_state]")
+
+	if(new_state == -1)
+		to_chat(user, span_warning("The config for respawn is set incorrectly, please complain to your nearest server host (or fix it yourself). \
+			In the meanwhile respawn has been set to \"Off\"."))
+		new_state = RESPAWN_FLAG_DISABLED
+		new_state_text = "Disabled"
+
+	CONFIG_SET(flag/allow_respawn, new_state)
+
+	message_admins(span_adminnotice("[key_name_admin(user)] 将重生切换为 \"[new_state_text]\"。"))
+	log_admin("[key_name(user)] toggled respawn to \"[new_state_text]\".")
+
+	world.update_status()
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggle Respawn", "[new_state_text]")) // If you are copy-pasting this, ensure the 4th parameter is unique to the new proc!
+
+ADMIN_VERB(delay, R_SERVER, "Delay Pre-Game", "Delay the game start.", ADMIN_CATEGORY_SERVER)
+	var/newtime = input(user, "设置新的时间（秒）。设为 -1 表示无限延迟。", "设置延迟", round(SSticker.GetTimeLeft()/10)) as num|null
+	if(!newtime)
+		return
+	if(SSticker.current_state > GAME_STATE_PREGAME)
+		return tgui_alert(user, "太晚了……游戏已经开始了！")
+	newtime = newtime*10
+	SSticker.SetTimeLeft(newtime)
+	SSticker.start_immediately = FALSE
+	if(newtime < 0)
+		to_chat(world, span_infoplain("<b>游戏开始已被延迟。</b>"), confidential = TRUE)
+		log_admin("[key_name(user)] delayed the round start.")
+	else
+		to_chat(world, span_infoplain(span_bold("游戏将在 [DisplayTimeText(newtime)] 后开始。")), confidential = TRUE)
+		SEND_SOUND(world, sound('sound/announcer/default/attention.ogg'))
+		log_admin("[key_name(user)] set the pre-game delay to [DisplayTimeText(newtime)].")
+	BLACKBOX_LOG_ADMIN_VERB("Delay Game Start")
+
+ADMIN_VERB(set_admin_notice, R_SERVER, "Set Admin Notice", "Set an announcement that appears to everyone who joins the server. Only lasts this round.", ADMIN_CATEGORY_SERVER)
+	var/new_admin_notice = input(
+		user,
+		"为本回合设置一个公共通知。每个加入服务器的玩家都会看到它。\n（留空将删除当前通知）：",
+		"设置通知",
+		GLOB.admin_notice,
+	) as message|null
+	if(new_admin_notice == null)
+		return
+	if(new_admin_notice == GLOB.admin_notice)
+		return
+	if(new_admin_notice == "")
+		message_admins("[key_name(user)] removed the admin notice.")
+		log_admin("[key_name(user)] removed the admin notice:\n[GLOB.admin_notice]")
+	else
+		message_admins("[key_name(user)] set the admin notice.")
+		log_admin("[key_name(user)] set the admin notice:\n[new_admin_notice]")
+		to_chat(world, span_adminnotice("<b>管理员通知：</b>\n \t [new_admin_notice]"), confidential = TRUE)
+	BLACKBOX_LOG_ADMIN_VERB("Set Admin Notice")
+	GLOB.admin_notice = new_admin_notice
+
+ADMIN_VERB(toggle_guests, R_SERVER, "Toggle Guests", "Toggle the ability for guests to enter the game.", ADMIN_CATEGORY_SERVER)
+	var/new_guest_ban = !CONFIG_GET(flag/guest_ban)
+	CONFIG_SET(flag/guest_ban, new_guest_ban)
+	if (new_guest_ban)
+		to_chat(world, span_bold("访客现在无法进入游戏。"), confidential = TRUE)
+	else
+		to_chat(world, "<B>Guests may now enter the game.</B>", confidential = TRUE)
+	log_admin("[key_name(user)] toggled guests game entering [!new_guest_ban ? "" : "dis"]allowed.")
+	message_admins(span_adminnotice("[key_name_admin(user)] 切换了访客进入游戏 [!new_guest_ban ? "" : "dis"]允许。"))
+	SSblackbox.record_feedback("nested tally", "admin_toggle", 1, list("Toggle Guests", "[!new_guest_ban ? "Enabled" : "Disabled"]")) // If you are copy-pasting this, ensure the 4th parameter is unique to the new proc!
